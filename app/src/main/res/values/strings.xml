@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Samsung Remote</string>
+
+    <!-- Main Activity -->
+    <string name="search_tv">Rechercher une TV</string>
+    <string name="searching">Recherche en cours…</string>
+    <string name="no_tv_found">Aucune TV Samsung trouvée</string>
+    <string name="tv_found">TV trouvée: %1$s</string>
+    <string name="connect">Connecter</string>
+    <string name="disconnect">Déconnecter</string>
+
+    <!-- Pairing Activity -->
+    <string name="pairing_title">Appairage avec la TV</string>
+    <string name="enter_pin">Entrez le code PIN affiché sur votre TV</string>
+    <string name="pin_hint">Code PIN</string>
+    <string name="pair">Appairer</string>
+    <string name="pairing_failed">Échec de l\'appairage</string>
+    <string name="pairing_success">Appairage réussi!</string>
+
+    <!-- Remote Control Activity -->
+    <string name="remote_control">Télécommande</string>
+    <string name="power">Power</string>
+    <string name="volume_up">Vol +</string>
+    <string name="volume_down">Vol -</string>
+    <string name="channel_up">Ch +</string>
+    <string name="channel_down">Ch -</string>
+    <string name="mute">Mute</string>
+    <string name="home">Home</string>
+    <string name="back">Retour</string>
+    <string name="menu">Menu</string>
+    <string name="source">Source</string>
+    <string name="tools">Outils</string>
+    <string name="info">Info</string>
+    <string name="enter">Entrée</string>
+    <string name="up">↑</string>
+    <string name="down">↓</string>
+    <string name="left">←</string>
+    <string name="right">→</string>
+    <string name="ok">OK</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="stop">Stop</string>
+    <string name="rewind">Reculer</string>
+    <string name="forward">Avancer</string>
+
+    <!-- Numbers -->
+    <string name="num_0">0</string>
+    <string name="num_1">1</string>
+    <string name="num_2">2</string>
+    <string name="num_3">3</string>
+    <string name="num_4">4</string>
+    <string name="num_5">5</string>
+    <string name="num_6">6</string>
+    <string name="num_7">7</string>
+    <string name="num_8">8</string>
+    <string name="num_9">9</string>
+
+    <!-- Errors -->
+    <string name="error_connection">Erreur de connexion</string>
+    <string name="error_send_command">Erreur lors de l\'envoi de la commande</string>
+    <string name="wifi_required">Veuillez vous connecter au même réseau Wi-Fi que votre TV</string>
+</resources>
