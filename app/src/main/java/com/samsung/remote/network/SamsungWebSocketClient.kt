@@ -4,6 +4,7 @@ import android.util.Base64
 import android.util.Log
 import com.google.gson.Gson
 import com.samsung.remote.model.RemoteKey
+import com.samsung.remote.util.DebugLogger
 import okhttp3.*
 import java.util.concurrent.TimeUnit
 
@@ -38,6 +39,7 @@ class SamsungWebSocketClient(
     }
 
     fun connect(token: String? = null) {
+        DebugLogger.i(TAG, "=== Démarrage de la connexion WebSocket ===")
         val nameEncoded = Base64.encodeToString(deviceName.toByteArray(), Base64.NO_WRAP)
 
         val url = if (token != null) {
@@ -46,66 +48,122 @@ class SamsungWebSocketClient(
             "${tv.getWebSocketUrl()}?name=$nameEncoded"
         }
 
+        DebugLogger.i(TAG, "URL WebSocket:")
+        DebugLogger.i(TAG, "  • URL complète: $url")
+        DebugLogger.i(TAG, "  • IP TV: ${tv.ip}")
+        DebugLogger.i(TAG, "  • Port: ${tv.port}")
+        DebugLogger.i(TAG, "  • Nom appareil: $deviceName (encodé: $nameEncoded)")
+        if (token != null) {
+            DebugLogger.d(TAG, "  • Token fourni: ${token.take(20)}...")
+        } else {
+            DebugLogger.d(TAG, "  • Pas de token (nouvelle connexion)")
+        }
+
         Log.d(TAG, "Connecting to: $url")
 
         val request = Request.Builder()
             .url(url)
             .build()
 
+        DebugLogger.d(TAG, "→ Création de la connexion WebSocket...")
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                DebugLogger.i(TAG, "✅ WebSocket ouvert avec succès!")
+                DebugLogger.d(TAG, "  • Code réponse HTTP: ${response.code}")
+                DebugLogger.d(TAG, "  • Message: ${response.message}")
                 Log.d(TAG, "WebSocket opened")
                 listener?.onConnected()
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                DebugLogger.i(TAG, "📨 Message reçu de la TV:")
+                DebugLogger.d(TAG, "  • Contenu: $text")
                 Log.d(TAG, "Message received: $text")
                 handleMessage(text)
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                DebugLogger.w(TAG, "⚠ WebSocket en cours de fermeture:")
+                DebugLogger.w(TAG, "  • Code: $code")
+                DebugLogger.w(TAG, "  • Raison: $reason")
                 Log.d(TAG, "WebSocket closing: $code / $reason")
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                DebugLogger.w(TAG, "✗ WebSocket fermé:")
+                DebugLogger.w(TAG, "  • Code: $code")
+                DebugLogger.w(TAG, "  • Raison: $reason")
                 Log.d(TAG, "WebSocket closed: $code / $reason")
                 listener?.onDisconnected()
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                DebugLogger.e(TAG, "❌ Échec de la connexion WebSocket!")
+                DebugLogger.e(TAG, "  • Erreur: ${t.message}")
+                DebugLogger.e(TAG, "  • Type: ${t.javaClass.simpleName}")
+                response?.let {
+                    DebugLogger.e(TAG, "  • Code HTTP: ${it.code}")
+                    DebugLogger.e(TAG, "  • Message HTTP: ${it.message}")
+                }
+                if (t is java.net.ConnectException) {
+                    DebugLogger.e(TAG, "  → Impossible de joindre la TV. Vérifiez:")
+                    DebugLogger.e(TAG, "    1. L'IP est correcte (${tv.ip})")
+                    DebugLogger.e(TAG, "    2. Le port est correct (${tv.port})")
+                    DebugLogger.e(TAG, "    3. La TV est allumée")
+                    DebugLogger.e(TAG, "    4. La TV est sur le même réseau")
+                } else if (t is java.net.SocketTimeoutException) {
+                    DebugLogger.e(TAG, "  → Timeout - La TV ne répond pas")
+                }
                 Log.e(TAG, "WebSocket error", t)
                 listener?.onError(t.message ?: "Unknown error")
             }
         })
+        DebugLogger.d(TAG, "Connexion WebSocket lancée")
     }
 
     private fun handleMessage(text: String) {
+        DebugLogger.d(TAG, "→ Traitement du message...")
         try {
             val response = gson.fromJson(text, Map::class.java)
             val event = response["event"] as? String
 
+            DebugLogger.i(TAG, "Événement TV: $event")
+
             when (event) {
                 "ms.channel.connect" -> {
+                    DebugLogger.i(TAG, "→ Événement de connexion reçu")
                     val data = response["data"] as? Map<*, *>
+                    DebugLogger.d(TAG, "  • Données: $data")
                     val token = data?.get("token") as? String
 
                     if (token != null) {
+                        DebugLogger.i(TAG, "✅ Token reçu: ${token.take(20)}...")
+                        DebugLogger.i(TAG, "Connexion autorisée!")
                         // Save token for future connections
                         listener?.onAuthSuccess()
                     } else {
+                        DebugLogger.i(TAG, "🔐 Aucun token - Authentification requise")
+                        DebugLogger.i(TAG, "→ Un PIN devrait apparaître sur la TV maintenant")
                         listener?.onAuthRequired()
                     }
                 }
                 "ms.channel.unauthorized" -> {
+                    DebugLogger.w(TAG, "⚠ Non autorisé - Authentification requise")
                     listener?.onAuthRequired()
                 }
                 "ms.error" -> {
                     val data = response["data"] as? Map<*, *>
                     val message = data?.get("message") as? String
+                    DebugLogger.e(TAG, "❌ Erreur de la TV: $message")
                     listener?.onError(message ?: "Unknown error from TV")
+                }
+                else -> {
+                    DebugLogger.w(TAG, "⚠ Événement inconnu: $event")
+                    DebugLogger.d(TAG, "  • Données complètes: $response")
                 }
             }
         } catch (e: Exception) {
+            DebugLogger.e(TAG, "❌ Erreur lors du parsing du message", e)
             Log.e(TAG, "Failed to parse message", e)
         }
     }
