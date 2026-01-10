@@ -9,6 +9,14 @@
     <string name="tv_found">TV trouvée: %1$s</string>
     <string name="connect">Connecter</string>
     <string name="disconnect">Déconnecter</string>
+    <string name="manual_ip">Entrer IP manuellement</string>
+    <string name="scan_network">Scanner le réseau</string>
+    <string name="scanning_network">Scan du réseau…</string>
+    <string name="manual_ip_dialog_title">Entrer l\'IP de la TV</string>
+    <string name="manual_ip_dialog_message">Entrez l\'adresse IP de votre TV Samsung.\nVous pouvez la trouver dans les paramètres réseau de votre TV.</string>
+    <string name="ip_hint">192.168.1.xxx</string>
+    <string name="invalid_ip">Adresse IP invalide</string>
+    <string name="checking_ip">Vérification de l\'IP…</string>
 
     <!-- Pairing Activity -->
     <string name="pairing_title">Appairage avec la TV</string>

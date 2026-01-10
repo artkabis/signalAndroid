@@ -158,6 +158,14 @@ class MainActivity : AppCompatActivity() {
                 startDiscovery()
             }
         }
+
+        binding.manualIpButton.setOnClickListener {
+            showManualIpDialog()
+        }
+
+        binding.scanNetworkButton.setOnClickListener {
+            startNetworkScan()
+        }
     }
 
     private fun startDiscovery() {
@@ -276,6 +284,145 @@ class MainActivity : AppCompatActivity() {
             putExtra("tv_port", tv.port)
         }
         startActivity(intent)
+    }
+
+    private fun showManualIpDialog() {
+        DebugLogger.i("MainActivity", "Ouverture du dialogue d'entrée manuelle d'IP")
+
+        val input = android.widget.EditText(this).apply {
+            hint = getString(R.string.ip_hint)
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                       android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText("192.168.1.")
+            setSelection(text.length)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.manual_ip_dialog_title)
+            .setMessage(R.string.manual_ip_dialog_message)
+            .setView(input)
+            .setPositiveButton("Connecter") { _, _ ->
+                val ip = input.text.toString().trim()
+                if (isValidIp(ip)) {
+                    DebugLogger.i("MainActivity", "IP entrée manuellement : $ip")
+                    connectToManualIp(ip)
+                } else {
+                    DebugLogger.w("MainActivity", "IP invalide entrée : $ip")
+                    Toast.makeText(this, R.string.invalid_ip, Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun isValidIp(ip: String): Boolean {
+        val parts = ip.split(".")
+        if (parts.size != 4) return false
+
+        return parts.all { part ->
+            part.toIntOrNull()?.let { it in 0..255 } ?: false
+        }
+    }
+
+    private fun connectToManualIp(ip: String) {
+        DebugLogger.i("MainActivity", "=== Connexion manuelle à $ip ===")
+        binding.progressBar.visibility = View.VISIBLE
+        binding.statusText.text = getString(R.string.checking_ip)
+
+        lifecycleScope.launch {
+            try {
+                val host = com.samsung.remote.util.NetworkScanner.checkSingleHost(ip)
+
+                if (host != null) {
+                    DebugLogger.i("MainActivity", "✓ Hôte $ip accessible")
+
+                    val tv = SamsungTV(
+                        name = host.hostname ?: "Samsung TV ($ip)",
+                        ip = ip,
+                        port = if (host.hasSamsungPort) 8002 else 8001
+                    )
+
+                    discoveredTVs.clear()
+                    discoveredTVs.add(tv)
+                    tvAdapter.submitList(discoveredTVs.toList())
+
+                    binding.statusText.text = getString(R.string.tv_found, tv.name)
+
+                    // Auto-connect
+                    onTVSelected(tv)
+                } else {
+                    DebugLogger.w("MainActivity", "✗ Impossible de joindre $ip")
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Impossible de joindre $ip. Vérifiez que la TV est allumée.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    binding.statusText.text = "Échec de connexion à $ip"
+                }
+            } catch (e: Exception) {
+                DebugLogger.e("MainActivity", "Erreur lors de la vérification de $ip", e)
+                Toast.makeText(
+                    this@MainActivity,
+                    "Erreur : ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } finally {
+                binding.progressBar.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun startNetworkScan() {
+        DebugLogger.i("MainActivity", "=== Démarrage du scan réseau ===")
+        binding.progressBar.visibility = View.VISIBLE
+        binding.statusText.text = getString(R.string.scanning_network)
+
+        lifecycleScope.launch {
+            try {
+                val activeHosts = com.samsung.remote.util.NetworkScanner.scanLocalNetwork(this@MainActivity)
+
+                if (activeHosts.isNotEmpty()) {
+                    DebugLogger.i("MainActivity", "✓ ${activeHosts.size} hôte(s) actif(s) trouvé(s)")
+
+                    // Add potential Samsung TVs to the list
+                    val samsungTVs = activeHosts.filter { it.hasSamsungPort }
+
+                    if (samsungTVs.isNotEmpty()) {
+                        DebugLogger.i("MainActivity", "✓ ${samsungTVs.size} TV(s) Samsung potentielle(s) détectée(s)")
+                        discoveredTVs.clear()
+                        discoveredTVs.addAll(samsungTVs.map { host ->
+                            SamsungTV(
+                                name = host.hostname ?: "Samsung TV (${host.ip})",
+                                ip = host.ip,
+                                port = 8002
+                            )
+                        })
+                        tvAdapter.submitList(discoveredTVs.toList())
+                        binding.statusText.text = "${samsungTVs.size} TV(s) trouvée(s)"
+                    } else {
+                        DebugLogger.w("MainActivity", "Aucune TV Samsung détectée parmi les hôtes actifs")
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Aucune TV Samsung détectée. Consultez les logs pour voir tous les hôtes actifs.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        binding.statusText.text = getString(R.string.no_tv_found)
+                    }
+                } else {
+                    DebugLogger.w("MainActivity", "Aucun hôte actif trouvé sur le réseau")
+                    binding.statusText.text = "Aucun appareil trouvé"
+                }
+            } catch (e: Exception) {
+                DebugLogger.e("MainActivity", "Erreur lors du scan réseau", e)
+                Toast.makeText(
+                    this@MainActivity,
+                    "Erreur : ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } finally {
+                binding.progressBar.visibility = View.GONE
+            }
+        }
     }
 
     private fun checkAndRequestLocationPermission() {
