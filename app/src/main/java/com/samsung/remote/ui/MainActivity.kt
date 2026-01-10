@@ -23,7 +23,9 @@ import com.samsung.remote.network.TVDiscoveryService
 import com.samsung.remote.util.DebugLogger
 import com.samsung.remote.util.PreferencesManager
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 class MainActivity : AppCompatActivity() {
 
@@ -37,6 +39,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val LOCATION_PERMISSION_REQUEST_CODE = 100
+        private const val DISCOVERY_TIMEOUT_MS = 30_000L // 30 seconds
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -188,21 +191,47 @@ class MainActivity : AppCompatActivity() {
         discoveryJob = lifecycleScope.launch {
             try {
                 DebugLogger.d("MainActivity", "Lancement du service de découverte NSD")
-                discoveryService.discoverTVs().collect { tv ->
-                    DebugLogger.i("MainActivity", "TV découverte: ${tv.name} (${tv.ip}:${tv.port})")
-                    if (!discoveredTVs.any { it.ip == tv.ip }) {
-                        discoveredTVs.add(tv)
-                        tvAdapter.submitList(discoveredTVs.toList())
+                DebugLogger.i("MainActivity", "Timeout configuré: ${DISCOVERY_TIMEOUT_MS / 1000} secondes")
 
-                        if (discoveredTVs.size == 1) {
-                            binding.statusText.text = getString(R.string.tv_found, tv.name)
-                        } else {
-                            binding.statusText.text = "${discoveredTVs.size} TVs trouvées"
+                // Start timeout counter
+                val timeoutJob = launch {
+                    var elapsedSeconds = 0
+                    while (elapsedSeconds < DISCOVERY_TIMEOUT_MS / 1000) {
+                        delay(1000)
+                        elapsedSeconds++
+                        val remaining = (DISCOVERY_TIMEOUT_MS / 1000) - elapsedSeconds
+                        binding.statusText.text = "Recherche... (${remaining}s)"
+
+                        if (elapsedSeconds % 5 == 0) {
+                            DebugLogger.d("MainActivity", "Recherche en cours... (${elapsedSeconds}s écoulées)")
                         }
-                    } else {
-                        DebugLogger.d("MainActivity", "TV déjà dans la liste, ignorée: ${tv.ip}")
                     }
                 }
+
+                val result = withTimeoutOrNull(DISCOVERY_TIMEOUT_MS) {
+                    discoveryService.discoverTVs().collect { tv ->
+                        DebugLogger.i("MainActivity", "TV découverte: ${tv.name} (${tv.ip}:${tv.port})")
+                        if (!discoveredTVs.any { it.ip == tv.ip }) {
+                            discoveredTVs.add(tv)
+                            tvAdapter.submitList(discoveredTVs.toList())
+
+                            if (discoveredTVs.size == 1) {
+                                binding.statusText.text = getString(R.string.tv_found, tv.name)
+                            } else {
+                                binding.statusText.text = "${discoveredTVs.size} TVs trouvées"
+                            }
+                        } else {
+                            DebugLogger.d("MainActivity", "TV déjà dans la liste, ignorée: ${tv.ip}")
+                        }
+                    }
+                }
+
+                timeoutJob.cancel()
+
+                if (result == null) {
+                    DebugLogger.w("MainActivity", "⏱ Timeout de découverte atteint (${DISCOVERY_TIMEOUT_MS / 1000}s)")
+                }
+
             } catch (e: Exception) {
                 DebugLogger.e("MainActivity", "Erreur lors de la découverte", e)
                 Toast.makeText(
@@ -215,10 +244,15 @@ class MainActivity : AppCompatActivity() {
                 binding.searchButton.text = getString(R.string.search_tv)
 
                 if (discoveredTVs.isEmpty()) {
-                    DebugLogger.w("MainActivity", "Aucune TV trouvée après la recherche")
+                    DebugLogger.w("MainActivity", "❌ Aucune TV trouvée après la recherche")
+                    DebugLogger.i("MainActivity", "Suggestions:")
+                    DebugLogger.i("MainActivity", "  1. Vérifiez que la TV est allumée")
+                    DebugLogger.i("MainActivity", "  2. Vérifiez que la TV est sur le même WiFi")
+                    DebugLogger.i("MainActivity", "  3. Essayez de redémarrer la TV")
+                    DebugLogger.i("MainActivity", "  4. Vérifiez les paramètres réseau de la TV")
                     binding.statusText.text = getString(R.string.no_tv_found)
                 } else {
-                    DebugLogger.i("MainActivity", "Découverte terminée: ${discoveredTVs.size} TV(s) trouvée(s)")
+                    DebugLogger.i("MainActivity", "✅ Découverte terminée: ${discoveredTVs.size} TV(s) trouvée(s)")
                 }
             }
         }
