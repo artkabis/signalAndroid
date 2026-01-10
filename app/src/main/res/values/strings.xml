@@ -69,11 +69,14 @@
 
     <!-- Debug Mode -->
     <string name="debug_logs">Logs de Débogage</string>
+    <string name="copy_all">Copier</string>
     <string name="clear_logs">Effacer</string>
     <string name="auto_scroll">Auto-scroll</string>
     <string name="close">Fermer</string>
     <string name="debug_mode">Mode Debug</string>
     <string name="view_logs">Voir les logs</string>
+    <string name="logs_copied">Logs copiés dans le presse-papiers</string>
+    <string name="log_copied">Log copié dans le presse-papiers</string>
 
     <!-- Errors -->
     <string name="error_connection">Erreur de connexion</string>

@@ -64,6 +64,33 @@ object DebugLogger {
 
     fun getLogs(): List<LogEntry> = logs.toList()
 
+    fun getLogsAsText(): String {
+        if (logs.isEmpty()) {
+            return "Aucun log disponible"
+        }
+
+        val sb = StringBuilder()
+        sb.appendLine("=== Samsung Remote Debug Logs ===")
+        sb.appendLine("Date: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())}")
+        sb.appendLine("Total logs: ${logs.size}")
+        sb.appendLine()
+
+        logs.forEach { entry ->
+            val levelStr = when (entry.level) {
+                LogLevel.VERBOSE -> "[V]"
+                LogLevel.DEBUG -> "[D]"
+                LogLevel.INFO -> "[I]"
+                LogLevel.WARNING -> "[W]"
+                LogLevel.ERROR -> "[E]"
+            }
+            sb.appendLine("${entry.timestamp} $levelStr ${entry.tag}")
+            sb.appendLine("  ${entry.message}")
+            sb.appendLine()
+        }
+
+        return sb.toString()
+    }
+
     fun clearLogs() {
         logs.clear()
         notifyListeners(LogEntry(
