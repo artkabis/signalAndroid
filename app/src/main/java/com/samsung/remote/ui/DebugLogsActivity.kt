@@ -1,8 +1,13 @@
 package com.samsung.remote.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.samsung.remote.R
 import com.samsung.remote.databinding.ActivityDebugLogsBinding
 import com.samsung.remote.adapter.DebugLogAdapter
 import com.samsung.remote.util.DebugLogger
@@ -29,7 +34,11 @@ class DebugLogsActivity : AppCompatActivity(), DebugLogger.LogListener {
     }
 
     private fun setupRecyclerView() {
-        adapter = DebugLogAdapter()
+        adapter = DebugLogAdapter(
+            onLogLongClick = { logEntry ->
+                copyLogToClipboard(logEntry)
+            }
+        )
         binding.logsRecyclerView.apply {
             layoutManager = LinearLayoutManager(this@DebugLogsActivity)
             adapter = this@DebugLogsActivity.adapter
@@ -37,6 +46,10 @@ class DebugLogsActivity : AppCompatActivity(), DebugLogger.LogListener {
     }
 
     private fun setupButtons() {
+        binding.copyAllLogsButton.setOnClickListener {
+            copyAllLogsToClipboard()
+        }
+
         binding.clearLogsButton.setOnClickListener {
             DebugLogger.clearLogs()
             adapter.clearLogs()
@@ -55,6 +68,34 @@ class DebugLogsActivity : AppCompatActivity(), DebugLogger.LogListener {
         binding.closeButton.setOnClickListener {
             finish()
         }
+    }
+
+    private fun copyAllLogsToClipboard() {
+        val logsText = DebugLogger.getLogsAsText()
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("Samsung Remote Debug Logs", logsText)
+        clipboard.setPrimaryClip(clip)
+
+        Toast.makeText(this, R.string.logs_copied, Toast.LENGTH_SHORT).show()
+        DebugLogger.i("DebugLogsActivity", "Logs copiés dans le presse-papiers (${DebugLogger.getLogs().size} logs)")
+    }
+
+    private fun copyLogToClipboard(logEntry: DebugLogger.LogEntry) {
+        val levelStr = when (logEntry.level) {
+            DebugLogger.LogLevel.VERBOSE -> "[V]"
+            DebugLogger.LogLevel.DEBUG -> "[D]"
+            DebugLogger.LogLevel.INFO -> "[I]"
+            DebugLogger.LogLevel.WARNING -> "[W]"
+            DebugLogger.LogLevel.ERROR -> "[E]"
+        }
+
+        val logText = "${logEntry.timestamp} $levelStr ${logEntry.tag}\n${logEntry.message}"
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("Samsung Remote Debug Log", logText)
+        clipboard.setPrimaryClip(clip)
+
+        Toast.makeText(this, R.string.log_copied, Toast.LENGTH_SHORT).show()
+        DebugLogger.d("DebugLogsActivity", "Log copié: ${logEntry.tag}")
     }
 
     private fun loadExistingLogs() {

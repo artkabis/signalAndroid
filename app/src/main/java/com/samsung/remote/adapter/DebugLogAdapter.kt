@@ -9,7 +9,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.samsung.remote.R
 import com.samsung.remote.util.DebugLogger
 
-class DebugLogAdapter : RecyclerView.Adapter<DebugLogAdapter.LogViewHolder>() {
+class DebugLogAdapter(
+    private val onLogLongClick: ((DebugLogger.LogEntry) -> Unit)? = null
+) : RecyclerView.Adapter<DebugLogAdapter.LogViewHolder>() {
 
     private val logs = mutableListOf<DebugLogger.LogEntry>()
 
@@ -37,7 +39,14 @@ class DebugLogAdapter : RecyclerView.Adapter<DebugLogAdapter.LogViewHolder>() {
     }
 
     override fun onBindViewHolder(holder: LogViewHolder, position: Int) {
-        holder.bind(logs[position])
+        val logEntry = logs[position]
+        holder.bind(logEntry)
+
+        // Set long click listener
+        holder.itemView.setOnLongClickListener {
+            onLogLongClick?.invoke(logEntry)
+            true
+        }
     }
 
     override fun getItemCount(): Int = logs.size

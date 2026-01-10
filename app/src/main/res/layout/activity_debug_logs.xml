@@ -78,10 +78,24 @@
         app:layout_constraintStart_toStartOf="parent">
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/copyAllLogsButton"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp"
+            android:layout_weight="1"
+            android:text="@string/copy_all"
+            android:textColor="@color/white"
+            app:strokeColor="@color/white"
+            app:icon="@android:drawable/ic_menu_share"
+            app:iconSize="16dp" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/clearLogsButton"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
             android:layout_marginEnd="4dp"
             android:layout_weight="1"
             android:text="@string/clear_logs"

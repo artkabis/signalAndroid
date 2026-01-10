@@ -1,6 +1,7 @@
 package com.samsung.remote.ui
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -37,7 +38,12 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize Debug Logger
         DebugLogger.init(this)
-        DebugLogger.i("MainActivity", "Application démarrée")
+        DebugLogger.i("MainActivity", "=== Application démarrée ===")
+        DebugLogger.d("MainActivity", "Version Android: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
+        DebugLogger.d("MainActivity", "Modèle appareil: ${Build.MANUFACTURER} ${Build.MODEL}")
+
+        // Log network information
+        com.samsung.remote.util.NetworkInfoHelper.logNetworkInfo(this, "MainActivity")
 
         prefsManager = PreferencesManager(this)
         discoveryService = TVDiscoveryService(this)
@@ -141,7 +147,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startDiscovery() {
-        DebugLogger.i("MainActivity", "Démarrage de la découverte des TV Samsung...")
+        DebugLogger.i("MainActivity", "=== Démarrage de la découverte des TV Samsung ===")
+
+        // Re-check network before starting discovery
+        com.samsung.remote.util.NetworkInfoHelper.logNetworkInfo(this, "MainActivity")
+
+        val networkInfo = com.samsung.remote.util.NetworkInfoHelper.getNetworkInfo(this)
+        if (!networkInfo.isConnected) {
+            DebugLogger.e("MainActivity", "❌ Échec: Aucune connexion réseau")
+            Toast.makeText(this, "Aucune connexion réseau détectée", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        if (!networkInfo.isWifi) {
+            DebugLogger.w("MainActivity", "⚠️ Avertissement: Pas sur Wi-Fi (Type: ${networkInfo.networkType})")
+            Toast.makeText(this, "Connectez-vous au Wi-Fi pour découvrir les TV Samsung", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        DebugLogger.i("MainActivity", "✓ Réseau OK - Wi-Fi connecté (SSID: ${networkInfo.ssid})")
+
         discoveredTVs.clear()
         tvAdapter.submitList(emptyList())
 
