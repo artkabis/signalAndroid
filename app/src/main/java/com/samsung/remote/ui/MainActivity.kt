@@ -336,10 +336,14 @@ class MainActivity : AppCompatActivity() {
                 if (host != null) {
                     DebugLogger.i("MainActivity", "✓ Hôte $ip accessible")
 
+                    // Use the detected port, or fallback to 8001 if no Samsung port detected
+                    val port = host.detectedPort ?: 8001
+                    DebugLogger.i("MainActivity", "Port sélectionné: $port")
+
                     val tv = SamsungTV(
                         name = host.hostname ?: "Samsung TV ($ip)",
                         ip = ip,
-                        port = if (host.hasSamsungPort) 8002 else 8001
+                        port = port
                     )
 
                     discoveredTVs.clear()
@@ -391,10 +395,12 @@ class MainActivity : AppCompatActivity() {
                         DebugLogger.i("MainActivity", "✓ ${samsungTVs.size} TV(s) Samsung potentielle(s) détectée(s)")
                         discoveredTVs.clear()
                         discoveredTVs.addAll(samsungTVs.map { host ->
+                            val port = host.detectedPort ?: 8002
+                            DebugLogger.i("MainActivity", "TV ${host.ip} configurée avec le port $port")
                             SamsungTV(
                                 name = host.hostname ?: "Samsung TV (${host.ip})",
                                 ip = host.ip,
-                                port = 8002
+                                port = port
                             )
                         })
                         tvAdapter.submitList(discoveredTVs.toList())

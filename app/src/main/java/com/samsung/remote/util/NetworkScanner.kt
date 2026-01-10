@@ -19,7 +19,8 @@ object NetworkScanner {
         val ip: String,
         val hostname: String?,
         val respondsToPing: Boolean,
-        val hasSamsungPort: Boolean = false
+        val hasSamsungPort: Boolean = false,
+        val detectedPort: Int? = null  // The specific Samsung port that was detected (8001 or 8002)
     )
 
     /**
@@ -63,12 +64,15 @@ object NetworkScanner {
                     DebugLogger.i(TAG, "🟢 Hôte actif trouvé : $ip ${host.hostname?.let { "($it)" } ?: ""}")
 
                     // Check for Samsung TV ports
-                    val hasSamsungPort = checkSamsungPorts(ip)
-                    if (hasSamsungPort) {
-                        DebugLogger.i(TAG, "  ✓ Port Samsung détecté sur $ip - Probable TV Samsung!")
+                    val samsungPort = checkSamsungPorts(ip)
+                    if (samsungPort != null) {
+                        DebugLogger.i(TAG, "  ✓ Port Samsung $samsungPort détecté sur $ip - Probable TV Samsung!")
                     }
 
-                    host.copy(hasSamsungPort = hasSamsungPort)
+                    host.copy(
+                        hasSamsungPort = samsungPort != null,
+                        detectedPort = samsungPort
+                    )
                 } else {
                     null
                 }
@@ -117,8 +121,10 @@ object NetworkScanner {
 
     /**
      * Vérifie si les ports Samsung sont ouverts (8001, 8002)
+     * Retourne le port détecté ou null si aucun port Samsung n'est ouvert
      */
-    private suspend fun checkSamsungPorts(ip: String): Boolean = withContext(Dispatchers.IO) {
+    private suspend fun checkSamsungPorts(ip: String): Int? = withContext(Dispatchers.IO) {
+        // Samsung TV ports in order of preference (8002 for newer TVs, 8001 for older)
         val samsungPorts = listOf(8001, 8002, 8080)
 
         for (port in samsungPorts) {
@@ -126,13 +132,13 @@ object NetworkScanner {
                 Socket().use { socket ->
                     socket.connect(InetSocketAddress(ip, port), SOCKET_TIMEOUT_MS)
                     DebugLogger.d(TAG, "  → Port $port ouvert sur $ip")
-                    return@withContext true
+                    return@withContext port
                 }
             } catch (e: Exception) {
                 // Port closed or timeout, try next
             }
         }
-        false
+        null
     }
 
     /**
@@ -143,12 +149,15 @@ object NetworkScanner {
         val host = pingHost(ip)
 
         if (host != null) {
-            val hasSamsungPort = checkSamsungPorts(ip)
+            val samsungPort = checkSamsungPorts(ip)
             DebugLogger.i(TAG, "✓ Hôte $ip est accessible")
-            if (hasSamsungPort) {
-                DebugLogger.i(TAG, "✓ Port Samsung détecté - Probable TV Samsung!")
+            if (samsungPort != null) {
+                DebugLogger.i(TAG, "✓ Port Samsung $samsungPort détecté - Probable TV Samsung!")
             }
-            return@withContext host.copy(hasSamsungPort = hasSamsungPort)
+            return@withContext host.copy(
+                hasSamsungPort = samsungPort != null,
+                detectedPort = samsungPort
+            )
         } else {
             DebugLogger.w(TAG, "✗ Hôte $ip n'est pas accessible")
             return@withContext null
