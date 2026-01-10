@@ -24,6 +24,18 @@
             android:layout_marginTop="8dp"
             tools:text="Samsung TV" />
 
+        <!-- Voice Input Button (Microphone FAB) -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/voiceInputButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:src="@drawable/ic_microphone"
+            android:contentDescription="@string/voice_input"
+            app:tint="@android:color/white"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
         <!-- Power Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/powerButton"

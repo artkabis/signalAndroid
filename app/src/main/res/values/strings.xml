@@ -56,6 +56,17 @@
     <string name="num_8">8</string>
     <string name="num_9">9</string>
 
+    <!-- Voice Input -->
+    <string name="voice_input">Saisie vocale</string>
+    <string name="voice_input_listening">Parlez maintenant…</string>
+    <string name="voice_input_ready">Appuyez pour parler</string>
+    <string name="voice_input_error">Erreur de reconnaissance vocale</string>
+    <string name="voice_input_no_text">Aucun texte reconnu</string>
+    <string name="voice_input_permission_denied">Permission microphone refusée</string>
+    <string name="send">Envoyer</string>
+    <string name="cancel">Annuler</string>
+    <string name="voice_input_sent">Texte envoyé à la TV</string>
+
     <!-- Errors -->
     <string name="error_connection">Erreur de connexion</string>
     <string name="error_send_command">Erreur lors de l\'envoi de la commande</string>

@@ -14,4 +14,8 @@
     <color name="samsung_light_gray">#F5F5F5</color>
     <color name="button_background">#2196F3</color>
     <color name="button_pressed">#1976D2</color>
+
+    <!-- Voice Input Dialog Colors -->
+    <color name="light_gray">#F0F0F0</color>
+    <color name="dark_gray">#666666</color>
 </resources>

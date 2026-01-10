@@ -1,13 +1,22 @@
 package com.samsung.remote.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import com.samsung.remote.R
 import com.samsung.remote.databinding.ActivityRemoteControlBinding
+import com.samsung.remote.databinding.DialogVoiceInputBinding
 import com.samsung.remote.model.RemoteKey
 import com.samsung.remote.model.SamsungTV
 import com.samsung.remote.network.SamsungWebSocketClient
 import com.samsung.remote.util.PreferencesManager
+import com.samsung.remote.util.VoiceInputManager
 
 class RemoteControlActivity : AppCompatActivity() {
 
@@ -15,6 +24,13 @@ class RemoteControlActivity : AppCompatActivity() {
     private lateinit var webSocketClient: SamsungWebSocketClient
     private lateinit var prefsManager: PreferencesManager
     private lateinit var tv: SamsungTV
+    private lateinit var voiceInputManager: VoiceInputManager
+    private var voiceInputDialog: AlertDialog? = null
+    private var recognizedText: String = ""
+
+    companion object {
+        private const val REQUEST_RECORD_AUDIO_PERMISSION = 200
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,6 +49,7 @@ class RemoteControlActivity : AppCompatActivity() {
 
         setupWebSocket()
         setupButtons()
+        setupVoiceInput()
         connectToTV()
     }
 
@@ -141,8 +158,148 @@ class RemoteControlActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupVoiceInput() {
+        voiceInputManager = VoiceInputManager(this)
+
+        binding.voiceInputButton.setOnClickListener {
+            if (checkAudioPermission()) {
+                showVoiceInputDialog()
+            } else {
+                requestAudioPermission()
+            }
+        }
+    }
+
+    private fun checkAudioPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun requestAudioPermission() {
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(Manifest.permission.RECORD_AUDIO),
+            REQUEST_RECORD_AUDIO_PERMISSION
+        )
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                showVoiceInputDialog()
+            } else {
+                Toast.makeText(
+                    this,
+                    R.string.voice_input_permission_denied,
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    private fun showVoiceInputDialog() {
+        val dialogBinding = DialogVoiceInputBinding.inflate(LayoutInflater.from(this))
+        recognizedText = ""
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogBinding.root)
+            .setCancelable(true)
+            .create()
+
+        voiceInputDialog = dialog
+
+        // Configuration du VoiceInputManager
+        voiceInputManager.setVoiceInputListener(object : VoiceInputManager.VoiceInputListener {
+            override fun onListeningStarted() {
+                runOnUiThread {
+                    dialogBinding.instructionTextView.text = getString(R.string.voice_input_listening)
+                    dialogBinding.recognizedTextView.text = ""
+                }
+            }
+
+            override fun onPartialResult(text: String) {
+                runOnUiThread {
+                    dialogBinding.recognizedTextView.text = text
+                    recognizedText = text
+                }
+            }
+
+            override fun onFinalResult(text: String) {
+                runOnUiThread {
+                    dialogBinding.recognizedTextView.text = text
+                    recognizedText = text
+                    dialogBinding.sendButton.isEnabled = text.isNotEmpty()
+                }
+            }
+
+            override fun onError(errorMessage: String) {
+                runOnUiThread {
+                    Toast.makeText(this@RemoteControlActivity, errorMessage, Toast.LENGTH_SHORT).show()
+                    dialogBinding.instructionTextView.text = getString(R.string.voice_input_error)
+                }
+            }
+
+            override fun onListeningEnded() {
+                runOnUiThread {
+                    dialogBinding.instructionTextView.text = getString(R.string.voice_input_ready)
+                }
+            }
+        })
+
+        // Bouton Annuler
+        dialogBinding.cancelButton.setOnClickListener {
+            voiceInputManager.stopListening()
+            dialog.dismiss()
+        }
+
+        // Bouton Envoyer
+        dialogBinding.sendButton.setOnClickListener {
+            if (recognizedText.isNotEmpty()) {
+                sendTextToTV(recognizedText)
+                dialog.dismiss()
+            } else {
+                Toast.makeText(
+                    this,
+                    R.string.voice_input_no_text,
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        dialog.setOnDismissListener {
+            voiceInputManager.stopListening()
+            voiceInputDialog = null
+        }
+
+        dialog.show()
+
+        // Démarrer l'écoute automatiquement
+        voiceInputManager.startListening("fr-FR")
+    }
+
+    private fun sendTextToTV(text: String) {
+        if (webSocketClient.isConnected()) {
+            // Essayer d'abord la méthode directe (SendInputString)
+            webSocketClient.sendText(text, useDirectMethod = true)
+            Toast.makeText(this, R.string.voice_input_sent, Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "Non connecté à la TV", Toast.LENGTH_SHORT).show()
+            connectToTV()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        voiceInputManager.destroy()
         webSocketClient.disconnect()
+        voiceInputDialog?.dismiss()
     }
 }
