@@ -5,6 +5,7 @@ import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.util.Log
 import com.samsung.remote.model.SamsungTV
+import com.samsung.remote.util.DebugLogger
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -21,48 +22,95 @@ class TVDiscoveryService(private val context: Context) {
     }
 
     fun discoverTVs(): Flow<SamsungTV> = callbackFlow {
+        DebugLogger.i(TAG, "=== Démarrage de la découverte NSD ===")
+        DebugLogger.d(TAG, "Type de service recherché: $SERVICE_TYPE")
         val discoveredTVs = mutableSetOf<String>()
 
         val discoveryListener = object : NsdManager.DiscoveryListener {
             override fun onStartDiscoveryFailed(serviceType: String?, errorCode: Int) {
-                Log.e(TAG, "Discovery start failed: Error code $errorCode")
+                val errorMsg = "Échec du démarrage de la découverte - Code erreur: $errorCode"
+                Log.e(TAG, errorMsg)
+                DebugLogger.e(TAG, errorMsg)
+                DebugLogger.e(TAG, "Vérifiez les permissions réseau et que le Wi-Fi est activé")
                 close()
             }
 
             override fun onStopDiscoveryFailed(serviceType: String?, errorCode: Int) {
-                Log.e(TAG, "Discovery stop failed: Error code $errorCode")
+                val errorMsg = "Échec de l'arrêt de la découverte - Code erreur: $errorCode"
+                Log.e(TAG, errorMsg)
+                DebugLogger.e(TAG, errorMsg)
             }
 
             override fun onDiscoveryStarted(serviceType: String?) {
-                Log.d(TAG, "Service discovery started")
+                val msg = "Découverte NSD démarrée pour: $serviceType"
+                Log.d(TAG, msg)
+                DebugLogger.i(TAG, msg)
+                DebugLogger.d(TAG, "Recherche de TVs Samsung sur le réseau local...")
+                DebugLogger.d(TAG, "Assurez-vous que votre téléphone et TV sont sur le même Wi-Fi")
             }
 
             override fun onDiscoveryStopped(serviceType: String?) {
-                Log.d(TAG, "Service discovery stopped")
+                val msg = "Découverte NSD arrêtée"
+                Log.d(TAG, msg)
+                DebugLogger.i(TAG, msg)
             }
 
             override fun onServiceFound(serviceInfo: NsdServiceInfo?) {
-                Log.d(TAG, "Service found: ${serviceInfo?.serviceName}")
+                val serviceName = serviceInfo?.serviceName ?: "unknown"
+                val msg = "Service trouvé: $serviceName"
+                Log.d(TAG, msg)
+                DebugLogger.i(TAG, msg)
+                DebugLogger.d(TAG, "Type: ${serviceInfo?.serviceType}")
+
                 serviceInfo?.let {
+                    DebugLogger.d(TAG, "Résolution du service: $serviceName...")
                     nsdManager.resolveService(it, object : NsdManager.ResolveListener {
                         override fun onResolveFailed(serviceInfo: NsdServiceInfo?, errorCode: Int) {
-                            Log.e(TAG, "Resolve failed: Error code $errorCode")
+                            val errorMsg = "Échec résolution de ${serviceInfo?.serviceName} - Code: $errorCode"
+                            Log.e(TAG, errorMsg)
+                            DebugLogger.w(TAG, errorMsg)
+
+                            when (errorCode) {
+                                NsdManager.FAILURE_ALREADY_ACTIVE -> {
+                                    DebugLogger.w(TAG, "Résolution déjà en cours pour ce service")
+                                }
+                                NsdManager.FAILURE_INTERNAL_ERROR -> {
+                                    DebugLogger.e(TAG, "Erreur interne NSD")
+                                }
+                                NsdManager.FAILURE_MAX_LIMIT -> {
+                                    DebugLogger.e(TAG, "Trop de requêtes NSD en cours")
+                                }
+                            }
                         }
 
                         override fun onServiceResolved(serviceInfo: NsdServiceInfo?) {
                             serviceInfo?.let { info ->
                                 val host = info.host?.hostAddress
                                 val port = info.port
+                                val name = info.serviceName
 
-                                if (host != null && !discoveredTVs.contains(host)) {
-                                    discoveredTVs.add(host)
-                                    val tv = SamsungTV(
-                                        name = info.serviceName,
-                                        ip = host,
-                                        port = port
-                                    )
-                                    Log.d(TAG, "TV resolved: ${tv.name} at ${tv.ip}:${tv.port}")
-                                    trySend(tv)
+                                DebugLogger.d(TAG, "Service résolu: $name")
+                                DebugLogger.d(TAG, "  - IP: $host")
+                                DebugLogger.d(TAG, "  - Port: $port")
+                                DebugLogger.d(TAG, "  - Host: ${info.host}")
+
+                                if (host != null) {
+                                    if (!discoveredTVs.contains(host)) {
+                                        discoveredTVs.add(host)
+                                        val tv = SamsungTV(
+                                            name = name,
+                                            ip = host,
+                                            port = port
+                                        )
+                                        val successMsg = "✓ TV Samsung découverte: $name à $host:$port"
+                                        Log.d(TAG, successMsg)
+                                        DebugLogger.i(TAG, successMsg)
+                                        trySend(tv)
+                                    } else {
+                                        DebugLogger.d(TAG, "TV déjà découverte (IP en double): $host")
+                                    }
+                                } else {
+                                    DebugLogger.w(TAG, "Adresse IP nulle pour $name")
                                 }
                             }
                         }
@@ -71,22 +119,31 @@ class TVDiscoveryService(private val context: Context) {
             }
 
             override fun onServiceLost(serviceInfo: NsdServiceInfo?) {
-                Log.d(TAG, "Service lost: ${serviceInfo?.serviceName}")
+                val msg = "Service perdu: ${serviceInfo?.serviceName}"
+                Log.d(TAG, msg)
+                DebugLogger.d(TAG, msg)
             }
         }
 
         try {
+            DebugLogger.d(TAG, "Initialisation du NsdManager...")
             nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
+            DebugLogger.i(TAG, "NsdManager.discoverServices() appelé avec succès")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start discovery", e)
+            val errorMsg = "Exception lors du démarrage de la découverte"
+            Log.e(TAG, errorMsg, e)
+            DebugLogger.e(TAG, errorMsg, e)
             close(e)
         }
 
         awaitClose {
+            DebugLogger.i(TAG, "Fermeture de la découverte NSD...")
             try {
                 nsdManager.stopServiceDiscovery(discoveryListener)
+                DebugLogger.d(TAG, "Découverte NSD arrêtée proprement")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to stop discovery", e)
+                DebugLogger.e(TAG, "Erreur lors de l'arrêt de la découverte", e)
             }
         }
     }
