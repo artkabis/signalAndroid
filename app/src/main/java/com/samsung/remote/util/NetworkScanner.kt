@@ -124,8 +124,11 @@ object NetworkScanner {
      * Retourne le port détecté ou null si aucun port Samsung n'est ouvert
      */
     private suspend fun checkSamsungPorts(ip: String): Int? = withContext(Dispatchers.IO) {
-        // Samsung TV ports in order of preference (8002 for newer TVs, 8001 for older)
-        val samsungPorts = listOf(8001, 8002, 8080)
+        // Samsung TV ports in order of preference
+        // Port 8002 FIRST (wss:// - required for newer TVs 2016+ for full functionality)
+        // Port 8001 second (ws:// - older TVs)
+        // Port 8080 last (fallback)
+        val samsungPorts = listOf(8002, 8001, 8080)
 
         for (port in samsungPorts) {
             try {

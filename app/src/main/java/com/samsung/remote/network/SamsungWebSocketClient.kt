@@ -6,7 +6,10 @@ import com.google.gson.Gson
 import com.samsung.remote.model.RemoteKey
 import com.samsung.remote.util.DebugLogger
 import okhttp3.*
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.*
 
 class SamsungWebSocketClient(
     private val tv: com.samsung.remote.model.SamsungTV,
@@ -14,14 +17,37 @@ class SamsungWebSocketClient(
 ) {
 
     private var webSocket: WebSocket? = null
-    private val client = OkHttpClient.Builder()
-        .readTimeout(0, TimeUnit.MILLISECONDS)
-        .build()
-
+    private val client: OkHttpClient
     private val gson = Gson()
 
     companion object {
         private const val TAG = "SamsungWebSocket"
+    }
+
+    init {
+        // Create OkHttpClient with support for self-signed certificates (Samsung TVs use self-signed certs)
+        client = try {
+            val trustManager = object : X509TrustManager {
+                override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
+                override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
+                override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+            }
+
+            val sslContext = SSLContext.getInstance("TLS")
+            sslContext.init(null, arrayOf<TrustManager>(trustManager), SecureRandom())
+
+            OkHttpClient.Builder()
+                .readTimeout(0, TimeUnit.MILLISECONDS)
+                .sslSocketFactory(sslContext.socketFactory, trustManager)
+                .hostnameVerifier { _, _ -> true }
+                .build()
+        } catch (e: Exception) {
+            DebugLogger.e(TAG, "Erreur lors de la configuration SSL: ${e.message}")
+            // Fallback to regular client
+            OkHttpClient.Builder()
+                .readTimeout(0, TimeUnit.MILLISECONDS)
+                .build()
+        }
     }
 
     interface ConnectionListener {
@@ -48,7 +74,9 @@ class SamsungWebSocketClient(
             "${tv.getWebSocketUrl()}?name=$nameEncoded"
         }
 
+        val protocol = if (tv.port == 8002) "wss:// (sécurisé)" else "ws:// (non-sécurisé)"
         DebugLogger.i(TAG, "URL WebSocket:")
+        DebugLogger.i(TAG, "  • Protocole: $protocol")
         DebugLogger.i(TAG, "  • URL complète: $url")
         DebugLogger.i(TAG, "  • IP TV: ${tv.ip}")
         DebugLogger.i(TAG, "  • Port: ${tv.port}")
