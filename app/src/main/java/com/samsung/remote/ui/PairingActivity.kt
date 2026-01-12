@@ -62,7 +62,13 @@ class PairingActivity : AppCompatActivity() {
 
     private fun setupWebSocket() {
         DebugLogger.d("PairingActivity", "Configuration du WebSocket...")
-        webSocketClient = SamsungWebSocketClient(tv)
+
+        // Generate unique device name to force TV to show new PIN
+        val uniqueId = (System.currentTimeMillis() % 10000).toString()
+        val uniqueDeviceName = "AndroidRemote-$uniqueId"
+        DebugLogger.i("PairingActivity", "Nom d'appareil unique: $uniqueDeviceName")
+
+        webSocketClient = SamsungWebSocketClient(tv, uniqueDeviceName)
         webSocketClient.setConnectionListener(object : SamsungWebSocketClient.ConnectionListener {
             override fun onConnected() {
                 DebugLogger.i("PairingActivity", "✓ WebSocket connecté!")

@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
 
 class SamsungWebSocketClient(
     private val tv: com.samsung.remote.model.SamsungTV,
-    private val deviceName: String = "AndroidRemote"
+    private var deviceName: String = "AndroidRemote"
 ) {
 
     private var webSocket: WebSocket? = null
@@ -148,7 +148,15 @@ class SamsungWebSocketClient(
                         clients.forEachIndexed { index, client ->
                             val clientMap = client as? Map<*, *>
                             val clientId = clientMap?.get("id") as? String
-                            val clientName = clientMap?.get("name") as? String
+                            val attributes = clientMap?.get("attributes") as? Map<*, *>
+                            val clientNameBase64 = attributes?.get("name") as? String
+                            val clientName = try {
+                                if (clientNameBase64 != null) {
+                                    String(Base64.decode(clientNameBase64, Base64.NO_WRAP))
+                                } else null
+                            } catch (e: Exception) {
+                                clientNameBase64
+                            }
                             val isHost = clientMap?.get("isHost") as? Boolean
                             val connectTime = clientMap?.get("connectTime") as? Number
 
@@ -186,7 +194,15 @@ class SamsungWebSocketClient(
                     DebugLogger.d(TAG, "  • Données: $data")
 
                     val clientId = data?.get("id") as? String
-                    val clientName = data?.get("name") as? String
+                    val attributes = data?.get("attributes") as? Map<*, *>
+                    val clientNameBase64 = attributes?.get("name") as? String
+                    val clientName = try {
+                        if (clientNameBase64 != null) {
+                            String(Base64.decode(clientNameBase64, Base64.NO_WRAP))
+                        } else null
+                    } catch (e: Exception) {
+                        clientNameBase64
+                    }
                     DebugLogger.i(TAG, "  • Client ID: $clientId")
                     DebugLogger.i(TAG, "  • Client Nom: $clientName")
                 }
