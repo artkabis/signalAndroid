@@ -99,9 +99,15 @@ class PairingActivity : AppCompatActivity() {
                 DebugLogger.i("PairingActivity", "🔐 Authentification requise - Le PIN devrait s'afficher sur la TV")
                 runOnUiThread {
                     binding.pairingProgressBar.visibility = View.GONE
-                    binding.pairingStatusText.text = getString(R.string.enter_pin)
-                    binding.pinInputLayout.visibility = View.VISIBLE
-                    binding.pairButton.isEnabled = true
+                    binding.pairingStatusText.text = "✓ Connecté !\n\n" +
+                            "REGARDEZ VOTRE TV SAMSUNG :\n" +
+                            "• Popup \"Autoriser\" en haut/bas de l'écran\n" +
+                            "• Ou notification \"Appareil connecté\"\n" +
+                            "• Ou code PIN affiché\n\n" +
+                            "Appuyez sur 'Test connexion TV' pour vérifier"
+                    binding.pinInputLayout.visibility = View.GONE
+                    binding.testConnectionButton.isEnabled = true
+                    binding.pairButton.isEnabled = false
                 }
             }
 
@@ -125,6 +131,16 @@ class PairingActivity : AppCompatActivity() {
     }
 
     private fun setupButtons() {
+        binding.testConnectionButton.setOnClickListener {
+            DebugLogger.i("PairingActivity", "→ Test de connexion : envoi d'une commande MUTE à la TV")
+            Toast.makeText(this, "Test: envoi commande MUTE à la TV...", Toast.LENGTH_SHORT).show()
+
+            // Send MUTE command to test if TV responds
+            webSocketClient.sendKey(com.samsung.remote.model.RemoteKey.MUTE)
+
+            binding.pairingStatusText.text = "Test envoyé ! Si la TV se met en mute, la connexion fonctionne.\nSinon, vérifiez les paramètres TV."
+        }
+
         binding.pairButton.setOnClickListener {
             val pin = binding.pinEditText.text.toString()
             if (pin.length == 4) {
