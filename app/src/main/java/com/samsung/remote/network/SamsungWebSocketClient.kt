@@ -133,8 +133,35 @@ class SamsungWebSocketClient(
                 "ms.channel.connect" -> {
                     DebugLogger.i(TAG, "→ Événement de connexion reçu")
                     val data = response["data"] as? Map<*, *>
-                    DebugLogger.d(TAG, "  • Données: $data")
+                    DebugLogger.d(TAG, "  • Données complètes: $data")
+
                     val token = data?.get("token") as? String
+                    val id = data?.get("id") as? String
+                    val clients = data?.get("clients") as? List<*>
+
+                    DebugLogger.i(TAG, "  • ID de connexion: $id")
+                    DebugLogger.i(TAG, "  • Nombre de clients connectés: ${clients?.size ?: 0}")
+
+                    // Log detailed info about existing clients
+                    if (clients != null && clients.isNotEmpty()) {
+                        DebugLogger.w(TAG, "  ⚠ ATTENTION: ${clients.size} client(s) déjà connecté(s):")
+                        clients.forEachIndexed { index, client ->
+                            val clientMap = client as? Map<*, *>
+                            val clientId = clientMap?.get("id") as? String
+                            val clientName = clientMap?.get("name") as? String
+                            val isHost = clientMap?.get("isHost") as? Boolean
+                            val connectTime = clientMap?.get("connectTime") as? Number
+
+                            DebugLogger.w(TAG, "    Client #${index + 1}:")
+                            DebugLogger.w(TAG, "      - ID: $clientId")
+                            DebugLogger.w(TAG, "      - Nom: $clientName")
+                            DebugLogger.w(TAG, "      - Est hôte: $isHost")
+                            DebugLogger.w(TAG, "      - Temps de connexion: $connectTime")
+                        }
+                        DebugLogger.w(TAG, "  → Ces clients peuvent bloquer l'affichage du PIN")
+                        DebugLogger.w(TAG, "  → Solution: Aller dans les paramètres TV > Gestionnaire de périphériques externes")
+                        DebugLogger.w(TAG, "  → et supprimer les anciens appareils 'AndroidRemote'")
+                    }
 
                     if (token != null) {
                         DebugLogger.i(TAG, "✅ Token reçu: ${token.take(20)}...")
@@ -144,8 +171,30 @@ class SamsungWebSocketClient(
                     } else {
                         DebugLogger.i(TAG, "🔐 Aucun token - Authentification requise")
                         DebugLogger.i(TAG, "→ Un PIN devrait apparaître sur la TV maintenant")
+
+                        if (clients != null && clients.isNotEmpty()) {
+                            DebugLogger.w(TAG, "⚠ MAIS: ${clients.size} clients déjà connectés peuvent empêcher le PIN")
+                            DebugLogger.w(TAG, "→ Vérifiez si 'AndroidRemote' est déjà dans la liste des appareils de la TV")
+                        }
+
                         listener?.onAuthRequired()
                     }
+                }
+                "ms.channel.clientConnect" -> {
+                    DebugLogger.i(TAG, "→ Événement: Nouveau client connecté")
+                    val data = response["data"] as? Map<*, *>
+                    DebugLogger.d(TAG, "  • Données: $data")
+
+                    val clientId = data?.get("id") as? String
+                    val clientName = data?.get("name") as? String
+                    DebugLogger.i(TAG, "  • Client ID: $clientId")
+                    DebugLogger.i(TAG, "  • Client Nom: $clientName")
+                }
+                "ms.channel.clientDisconnect" -> {
+                    DebugLogger.i(TAG, "→ Événement: Client déconnecté")
+                    val data = response["data"] as? Map<*, *>
+                    val clientId = data?.get("id") as? String
+                    DebugLogger.i(TAG, "  • Client ID déconnecté: $clientId")
                 }
                 "ms.channel.unauthorized" -> {
                     DebugLogger.w(TAG, "⚠ Non autorisé - Authentification requise")
