@@ -133,19 +133,24 @@ class PairingActivity : AppCompatActivity() {
     private fun setupButtons() {
         binding.testConnectionButton.setOnClickListener {
             DebugLogger.i("PairingActivity", "→ Test de connexion : envoi d'une commande MUTE à la TV")
-            Toast.makeText(this, "⚠ Test envoyé à la TV...", Toast.LENGTH_LONG).show()
+
+            val protocolName = webSocketClient.getProtocolName()
+            Toast.makeText(this, "Test envoyé via $protocolName", Toast.LENGTH_LONG).show()
 
             // Send MUTE command to test if TV responds
             webSocketClient.sendKey(com.samsung.remote.model.RemoteKey.KEY_MUTE)
 
-            binding.pairingStatusText.text = "⚠ Test envoyé !\n\n" +
-                    "IMPORTANT : Votre TV (UE32J6300, 2015)\n" +
-                    "ne supporte pas les commandes via WebSocket.\n\n" +
-                    "L'erreur 'ms.remote.control unrecognized'\n" +
-                    "est normale pour ce modèle.\n\n" +
-                    "Vérifiez les paramètres TV :\n" +
-                    "Menu → Paramètres → Général →\n" +
-                    "External Device Manager"
+            // Wait a bit for protocol auto-detection
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                val detectedProtocol = webSocketClient.getProtocolName()
+                binding.pairingStatusText.text = "✅ Test envoyé !\n\n" +
+                        "Protocole détecté :\n" +
+                        "$detectedProtocol\n\n" +
+                        "Si le son de la TV a changé (MUTE),\n" +
+                        "cela signifie que la télécommande fonctionne !\n\n" +
+                        "Sinon, l'app teste automatiquement\n" +
+                        "différents formats de commande."
+            }, 500)
         }
 
         binding.pairButton.setOnClickListener {

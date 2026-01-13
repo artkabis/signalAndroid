@@ -4,6 +4,9 @@ import android.util.Base64
 import android.util.Log
 import com.google.gson.Gson
 import com.samsung.remote.model.RemoteKey
+import com.samsung.remote.network.protocol.JSeriesWebSocketProtocol
+import com.samsung.remote.network.protocol.ModernWebSocketProtocol
+import com.samsung.remote.network.protocol.TVRemoteProtocol
 import com.samsung.remote.util.DebugLogger
 import okhttp3.*
 import java.security.SecureRandom
@@ -19,6 +22,11 @@ class SamsungWebSocketClient(
     private var webSocket: WebSocket? = null
     private val client: OkHttpClient
     private val gson = Gson()
+
+    // Protocol auto-detection
+    private var currentProtocol: TVRemoteProtocol? = null
+    private var modernProtocol: ModernWebSocketProtocol? = null
+    private var jSeriesProtocol: JSeriesWebSocketProtocol? = null
 
     companion object {
         private const val TAG = "SamsungWebSocket"
@@ -100,6 +108,15 @@ class SamsungWebSocketClient(
                 DebugLogger.d(TAG, "  • Code réponse HTTP: ${response.code}")
                 DebugLogger.d(TAG, "  • Message: ${response.message}")
                 Log.d(TAG, "WebSocket opened")
+
+                // Initialize protocols for auto-detection
+                modernProtocol = ModernWebSocketProtocol(webSocket)
+                jSeriesProtocol = JSeriesWebSocketProtocol(webSocket)
+
+                // Start with modern protocol (for 2016+ TVs)
+                currentProtocol = modernProtocol
+                DebugLogger.i(TAG, "🔧 Protocole initialisé: ${currentProtocol?.getProtocolName()}")
+
                 listener?.onConnected()
             }
 
@@ -248,7 +265,27 @@ class SamsungWebSocketClient(
                     val data = response["data"] as? Map<*, *>
                     val message = data?.get("message") as? String
                     DebugLogger.e(TAG, "❌ Erreur de la TV: $message")
-                    listener?.onError(message ?: "Unknown error from TV")
+
+                    // Auto-detect protocol based on error message
+                    if (message?.contains("unrecognized method value") == true &&
+                        message.contains("ms.remote.control")) {
+
+                        DebugLogger.w(TAG, "🔄 Protocole moderne non supporté par cette TV")
+                        DebugLogger.w(TAG, "→ Basculement vers le protocole J-Series (2014-2015)")
+
+                        // Mark modern protocol as unsupported
+                        modernProtocol?.markAsUnsupported()
+
+                        // Switch to J-Series protocol
+                        currentProtocol = jSeriesProtocol
+                        DebugLogger.i(TAG, "✅ Protocole changé: ${currentProtocol?.getProtocolName()}")
+
+                        // Don't notify error to user for this specific case
+                        // as it's expected for J-Series TVs
+                    } else {
+                        // Other errors should be reported
+                        listener?.onError(message ?: "Unknown error from TV")
+                    }
                 }
                 else -> {
                     DebugLogger.w(TAG, "⚠ Événement inconnu: $event")
@@ -262,19 +299,26 @@ class SamsungWebSocketClient(
     }
 
     fun sendKey(key: RemoteKey) {
-        val message = mapOf(
-            "method" to "ms.remote.control",
-            "params" to mapOf(
-                "Cmd" to "Click",
-                "DataOfCmd" to key.keyCode,
-                "Option" to "false",
-                "TypeOfRemote" to "SendRemoteKey"
-            )
-        )
+        val protocol = currentProtocol
+        if (protocol == null) {
+            DebugLogger.e(TAG, "No protocol initialized, cannot send key")
+            return
+        }
 
-        val json = gson.toJson(message)
-        Log.d(TAG, "Sending key: $json")
-        webSocket?.send(json)
+        DebugLogger.d(TAG, "Sending key ${key.keyCode} using ${protocol.getProtocolName()}")
+
+        val success = protocol.sendKey(key)
+        if (!success) {
+            DebugLogger.w(TAG, "Failed to send key with current protocol")
+
+            // If J-Series protocol failed, try next format
+            if (protocol is JSeriesWebSocketProtocol) {
+                DebugLogger.i(TAG, "Trying next J-Series format...")
+                protocol.tryNextFormat()
+                // Retry with new format
+                protocol.sendKey(key)
+            }
+        }
     }
 
     /**
@@ -379,5 +423,19 @@ class SamsungWebSocketClient(
 
     fun isConnected(): Boolean {
         return webSocket != null
+    }
+
+    /**
+     * Retourne le protocole actuellement utilisé
+     */
+    fun getCurrentProtocol(): TVRemoteProtocol? {
+        return currentProtocol
+    }
+
+    /**
+     * Retourne le nom du protocole pour l'affichage
+     */
+    fun getProtocolName(): String {
+        return currentProtocol?.getProtocolName() ?: "Aucun protocole"
     }
 }
