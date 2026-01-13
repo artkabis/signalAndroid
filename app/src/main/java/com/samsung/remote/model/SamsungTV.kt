@@ -8,6 +8,13 @@ data class SamsungTV(
     val model: String? = null
 ) {
     fun getWebSocketUrl(): String {
-        return "ws://$ip:$port/api/v2/channels/samsung.remote.control"
+        // Samsung Smart TV WebSocket API endpoint
+        // Port 8001 = ws:// (HTTP WebSocket, older TVs)
+        // Port 8002 = wss:// (HTTPS WebSocket Secure, newer TVs 2016+)
+        return if (port == 8002) {
+            "wss://$ip:$port/api/v2/channels/samsung.remote.control"
+        } else {
+            "ws://$ip:$port/api/v2/channels/samsung.remote.control"
+        }
     }
 }

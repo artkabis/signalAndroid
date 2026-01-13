@@ -9,6 +9,7 @@ import com.samsung.remote.R
 import com.samsung.remote.databinding.ActivityPairingBinding
 import com.samsung.remote.model.SamsungTV
 import com.samsung.remote.network.SamsungWebSocketClient
+import com.samsung.remote.util.DebugLogger
 import com.samsung.remote.util.PreferencesManager
 
 class PairingActivity : AppCompatActivity() {
@@ -23,12 +24,22 @@ class PairingActivity : AppCompatActivity() {
         binding = ActivityPairingBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        DebugLogger.i("PairingActivity", "=== Activité d'appairage démarrée ===")
+
         prefsManager = PreferencesManager(this)
 
         // Get TV info from intent
         val tvName = intent.getStringExtra("tv_name") ?: "Samsung TV"
-        val tvIp = intent.getStringExtra("tv_ip") ?: return finish()
+        val tvIp = intent.getStringExtra("tv_ip") ?: run {
+            DebugLogger.e("PairingActivity", "IP TV manquante dans l'intent!")
+            return finish()
+        }
         val tvPort = intent.getIntExtra("tv_port", 8002)
+
+        DebugLogger.i("PairingActivity", "Informations TV:")
+        DebugLogger.i("PairingActivity", "  • Nom: $tvName")
+        DebugLogger.i("PairingActivity", "  • IP: $tvIp")
+        DebugLogger.i("PairingActivity", "  • Port: $tvPort")
 
         tv = SamsungTV(tvName, tvIp, tvPort)
         binding.tvNameText.text = tvName
@@ -39,18 +50,28 @@ class PairingActivity : AppCompatActivity() {
         // Try to connect with saved token
         val savedToken = prefsManager.getAuthToken()
         if (savedToken != null) {
+            DebugLogger.i("PairingActivity", "Token sauvegardé trouvé: ${savedToken.take(20)}...")
             binding.pairingStatusText.text = "Tentative de connexion avec le token sauvegardé..."
             connectWithToken(savedToken)
         } else {
+            DebugLogger.i("PairingActivity", "Aucun token sauvegardé, nouvelle connexion")
             binding.pairingStatusText.text = "En attente de l'appairage..."
             initiateConnection()
         }
     }
 
     private fun setupWebSocket() {
-        webSocketClient = SamsungWebSocketClient(tv)
+        DebugLogger.d("PairingActivity", "Configuration du WebSocket...")
+
+        // Generate unique device name to force TV to show new PIN
+        val uniqueId = (System.currentTimeMillis() % 10000).toString()
+        val uniqueDeviceName = "AndroidRemote-$uniqueId"
+        DebugLogger.i("PairingActivity", "Nom d'appareil unique: $uniqueDeviceName")
+
+        webSocketClient = SamsungWebSocketClient(tv, uniqueDeviceName)
         webSocketClient.setConnectionListener(object : SamsungWebSocketClient.ConnectionListener {
             override fun onConnected() {
+                DebugLogger.i("PairingActivity", "✓ WebSocket connecté!")
                 runOnUiThread {
                     binding.pairingProgressBar.visibility = View.GONE
                     binding.pairingStatusText.text = "Connecté! Vérification..."
@@ -58,6 +79,7 @@ class PairingActivity : AppCompatActivity() {
             }
 
             override fun onDisconnected() {
+                DebugLogger.w("PairingActivity", "✗ WebSocket déconnecté")
                 runOnUiThread {
                     binding.pairingProgressBar.visibility = View.GONE
                     binding.pairingStatusText.text = "Déconnecté"
@@ -65,6 +87,7 @@ class PairingActivity : AppCompatActivity() {
             }
 
             override fun onError(error: String) {
+                DebugLogger.e("PairingActivity", "❌ Erreur WebSocket: $error")
                 runOnUiThread {
                     binding.pairingProgressBar.visibility = View.GONE
                     binding.pairingStatusText.text = "Erreur: $error"
@@ -73,15 +96,23 @@ class PairingActivity : AppCompatActivity() {
             }
 
             override fun onAuthRequired() {
+                DebugLogger.i("PairingActivity", "🔐 Authentification requise - Le PIN devrait s'afficher sur la TV")
                 runOnUiThread {
                     binding.pairingProgressBar.visibility = View.GONE
-                    binding.pairingStatusText.text = getString(R.string.enter_pin)
+                    binding.pairingStatusText.text = "✓ Connecté à la TV !\n\n" +
+                            "Regardez votre TV Samsung :\n" +
+                            "• Un code PIN peut s'afficher\n" +
+                            "• Ou un message \"Autoriser cet appareil\"\n\n" +
+                            "Si vous voyez un PIN, entrez-le ci-dessous.\n" +
+                            "Sinon, utilisez le bouton Test."
                     binding.pinInputLayout.visibility = View.VISIBLE
+                    binding.testConnectionButton.isEnabled = true
                     binding.pairButton.isEnabled = true
                 }
             }
 
             override fun onAuthSuccess() {
+                DebugLogger.i("PairingActivity", "✅ Authentification réussie!")
                 runOnUiThread {
                     binding.pairingProgressBar.visibility = View.GONE
                     binding.pairingStatusText.text = getString(R.string.pairing_success)
@@ -96,9 +127,32 @@ class PairingActivity : AppCompatActivity() {
                 }
             }
         })
+        DebugLogger.d("PairingActivity", "WebSocket configuré")
     }
 
     private fun setupButtons() {
+        binding.testConnectionButton.setOnClickListener {
+            DebugLogger.i("PairingActivity", "→ Test de connexion : envoi d'une commande MUTE à la TV")
+
+            val protocolName = webSocketClient.getProtocolName()
+            Toast.makeText(this, "Test envoyé via $protocolName", Toast.LENGTH_LONG).show()
+
+            // Send MUTE command to test if TV responds
+            webSocketClient.sendKey(com.samsung.remote.model.RemoteKey.KEY_MUTE)
+
+            // Wait a bit for protocol auto-detection
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                val detectedProtocol = webSocketClient.getProtocolName()
+                binding.pairingStatusText.text = "✅ Test envoyé !\n\n" +
+                        "Protocole détecté :\n" +
+                        "$detectedProtocol\n\n" +
+                        "Si le son de la TV a changé (MUTE),\n" +
+                        "cela signifie que la télécommande fonctionne !\n\n" +
+                        "Sinon, l'app teste automatiquement\n" +
+                        "différents formats de commande."
+            }, 500)
+        }
+
         binding.pairButton.setOnClickListener {
             val pin = binding.pinEditText.text.toString()
             if (pin.length == 4) {
@@ -114,11 +168,13 @@ class PairingActivity : AppCompatActivity() {
     }
 
     private fun initiateConnection() {
+        DebugLogger.i("PairingActivity", "→ Initiation de la connexion WebSocket...")
         binding.pairingProgressBar.visibility = View.VISIBLE
         webSocketClient.connect()
     }
 
     private fun connectWithToken(token: String) {
+        DebugLogger.i("PairingActivity", "→ Connexion avec token: ${token.take(20)}...")
         binding.pairingProgressBar.visibility = View.VISIBLE
         webSocketClient.connect(token)
     }
