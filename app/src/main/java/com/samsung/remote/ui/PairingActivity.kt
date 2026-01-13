@@ -99,15 +99,15 @@ class PairingActivity : AppCompatActivity() {
                 DebugLogger.i("PairingActivity", "🔐 Authentification requise - Le PIN devrait s'afficher sur la TV")
                 runOnUiThread {
                     binding.pairingProgressBar.visibility = View.GONE
-                    binding.pairingStatusText.text = "✓ Connecté !\n\n" +
-                            "REGARDEZ VOTRE TV SAMSUNG :\n" +
-                            "• Popup \"Autoriser\" en haut/bas de l'écran\n" +
-                            "• Ou notification \"Appareil connecté\"\n" +
-                            "• Ou code PIN affiché\n\n" +
-                            "Appuyez sur 'Test connexion TV' pour vérifier"
-                    binding.pinInputLayout.visibility = View.GONE
+                    binding.pairingStatusText.text = "✓ Connecté à la TV !\n\n" +
+                            "Regardez votre TV Samsung :\n" +
+                            "• Un code PIN peut s'afficher\n" +
+                            "• Ou un message \"Autoriser cet appareil\"\n\n" +
+                            "Si vous voyez un PIN, entrez-le ci-dessous.\n" +
+                            "Sinon, utilisez le bouton Test."
+                    binding.pinInputLayout.visibility = View.VISIBLE
                     binding.testConnectionButton.isEnabled = true
-                    binding.pairButton.isEnabled = false
+                    binding.pairButton.isEnabled = true
                 }
             }
 
@@ -133,12 +133,19 @@ class PairingActivity : AppCompatActivity() {
     private fun setupButtons() {
         binding.testConnectionButton.setOnClickListener {
             DebugLogger.i("PairingActivity", "→ Test de connexion : envoi d'une commande MUTE à la TV")
-            Toast.makeText(this, "Test: envoi commande MUTE à la TV...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "⚠ Test envoyé à la TV...", Toast.LENGTH_LONG).show()
 
             // Send MUTE command to test if TV responds
             webSocketClient.sendKey(com.samsung.remote.model.RemoteKey.KEY_MUTE)
 
-            binding.pairingStatusText.text = "Test envoyé ! Si la TV se met en mute, la connexion fonctionne.\nSinon, vérifiez les paramètres TV."
+            binding.pairingStatusText.text = "⚠ Test envoyé !\n\n" +
+                    "IMPORTANT : Votre TV (UE32J6300, 2015)\n" +
+                    "ne supporte pas les commandes via WebSocket.\n\n" +
+                    "L'erreur 'ms.remote.control unrecognized'\n" +
+                    "est normale pour ce modèle.\n\n" +
+                    "Vérifiez les paramètres TV :\n" +
+                    "Menu → Paramètres → Général →\n" +
+                    "External Device Manager"
         }
 
         binding.pairButton.setOnClickListener {

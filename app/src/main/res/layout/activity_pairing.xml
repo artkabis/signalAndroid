@@ -34,13 +34,13 @@
         android:id="@+id/instructionText"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="@string/enter_pin"
+        android:text="Connexion en cours..."
         android:textSize="16sp"
         android:gravity="center"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvNameText"
-        android:layout_marginTop="48dp" />
+        android:layout_marginTop="24dp" />
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/pinInputLayout"
@@ -80,7 +80,8 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:textSize="14sp"
+        android:textSize="16sp"
+        android:lineSpacingMultiplier="1.2"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/pairingProgressBar"
@@ -90,13 +91,15 @@
         android:id="@+id/testConnectionButton"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Test connexion TV"
+        android:text="🔊 Tester la connexion"
+        android:textSize="16sp"
         android:padding="16dp"
         style="@style/Widget.Material3.Button.OutlinedButton"
         app:layout_constraintBottom_toTopOf="@id/pairButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="16dp"
+        android:enabled="false" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/pairButton"
