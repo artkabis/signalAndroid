@@ -136,7 +136,7 @@ class PairingActivity : AppCompatActivity() {
             Toast.makeText(this, "Test: envoi commande MUTE à la TV...", Toast.LENGTH_SHORT).show()
 
             // Send MUTE command to test if TV responds
-            webSocketClient.sendKey(com.samsung.remote.model.RemoteKey.MUTE)
+            webSocketClient.sendKey(com.samsung.remote.model.RemoteKey.KEY_MUTE)
 
             binding.pairingStatusText.text = "Test envoyé ! Si la TV se met en mute, la connexion fonctionne.\nSinon, vérifiez les paramètres TV."
         }
