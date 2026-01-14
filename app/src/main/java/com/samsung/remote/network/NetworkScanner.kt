@@ -13,16 +13,24 @@ import java.net.InetSocketAddress
 import java.net.Socket
 
 /**
- * Scanner réseau pour détecter les TV Samsung en scannant les ports 8001/8002
+ * Scanner réseau intelligent pour détecter les TV Samsung multi-générations
+ * Support: Legacy (2011-2015), Transition (2014-2016), Moderne (2016+)
  */
 class NetworkScanner(private val context: Context) {
 
     companion object {
         private const val TAG = "NetworkScanner"
-        private const val SAMSUNG_PORT_WS = 8001
-        private const val SAMSUNG_PORT_WSS = 8002
-        private const val SOCKET_TIMEOUT_MS = 500 // Timeout rapide pour le scan
-        private const val MAX_CONCURRENT_SCANS = 20 // Limiter les connexions simultanées
+
+        // Ports Samsung TV par génération
+        private const val SAMSUNG_PORT_LEGACY = 55000  // 2011-2015: TCP propriétaire
+        private const val SAMSUNG_PORT_WS = 8001       // 2014-2016: WebSocket
+        private const val SAMSUNG_PORT_WSS = 8002      // 2016+: WebSocket Secure
+
+        private const val SOCKET_TIMEOUT_MS = 800 // Timeout pour détection multi-port
+        private const val MAX_CONCURRENT_SCANS = 15 // Limiter les connexions simultanées
+
+        // Ordre de préférence des ports (du plus moderne au plus ancien)
+        private val SAMSUNG_PORTS = listOf(SAMSUNG_PORT_WSS, SAMSUNG_PORT_WS, SAMSUNG_PORT_LEGACY)
     }
 
     /**
@@ -64,22 +72,88 @@ class NetworkScanner(private val context: Context) {
     }
 
     /**
-     * Vérifie si une IP a un port Samsung TV ouvert
+     * Détecte tous les protocoles Samsung disponibles sur une IP
+     * Retourne le résultat complet de la détection
      */
-    private suspend fun checkSamsungPorts(ip: String): Int? = withContext(Dispatchers.IO) {
-        // Vérifier port 8002 (WSS) en priorité
-        if (isPortOpen(ip, SAMSUNG_PORT_WSS)) {
-            DebugLogger.d(TAG, "Port $SAMSUNG_PORT_WSS ouvert sur $ip")
-            return@withContext SAMSUNG_PORT_WSS
+    private suspend fun detectSamsungProtocols(ip: String): ProtocolDetectionResult = withContext(Dispatchers.IO) {
+        val startTime = System.currentTimeMillis()
+
+        DebugLogger.d(TAG, "🔍 Détection protocoles Samsung sur $ip...")
+
+        val detectedProtocols = mutableListOf<SamsungTVProtocol>()
+
+        // Tester chaque port dans l'ordre de préférence
+        for (port in SAMSUNG_PORTS) {
+            if (isPortOpen(ip, port)) {
+                val protocol = SamsungTVProtocol.fromPort(port)
+                if (protocol != null) {
+                    detectedProtocols.add(protocol)
+                    DebugLogger.i(TAG, "✓ Port $port ouvert sur $ip - ${protocol.generation.displayName}")
+                }
+            }
         }
 
-        // Puis vérifier port 8001 (WS)
-        if (isPortOpen(ip, SAMSUNG_PORT_WS)) {
-            DebugLogger.d(TAG, "Port $SAMSUNG_PORT_WS ouvert sur $ip")
-            return@withContext SAMSUNG_PORT_WS
+        // Résoudre le nom d'hôte
+        val hostname = resolveHostname(ip)
+
+        // Déterminer le protocole recommandé (le plus moderne détecté)
+        val recommendedProtocol = detectedProtocols.firstOrNull()
+
+        val detectionTime = System.currentTimeMillis() - startTime
+
+        val result = ProtocolDetectionResult(
+            ip = ip,
+            hostname = hostname,
+            detectedProtocols = detectedProtocols,
+            recommendedProtocol = recommendedProtocol,
+            detectionTimeMs = detectionTime
+        )
+
+        // Logger le rapport détaillé
+        if (detectedProtocols.isNotEmpty()) {
+            DebugLogger.i(TAG, "🎯 TV Samsung détectée sur $ip")
+            DebugLogger.d(TAG, result.getShortSummary())
+
+            // Log détaillé de la stratégie recommandée
+            recommendedProtocol?.let { protocol ->
+                DebugLogger.i(TAG, "📋 Stratégie recommandée pour $ip:")
+                DebugLogger.i(TAG, "  → Utiliser ${protocol.protocol.uppercase()} sur port ${protocol.port}")
+                DebugLogger.i(TAG, "  → Génération: ${protocol.generation.displayName}")
+                DebugLogger.i(TAG, "  → SSL: ${if (protocol.useSSL) "Oui" else "Non"}")
+
+                when (protocol.generation) {
+                    SamsungTVGeneration.MODERN -> {
+                        DebugLogger.i(TAG, "  → Méthode: WebSocket Sécurisé (WSS)")
+                        DebugLogger.i(TAG, "  → Auth: Token persistant")
+                        DebugLogger.i(TAG, "  → Features: Keep-alive + Auto-reconnect")
+                    }
+                    SamsungTVGeneration.TRANSITION -> {
+                        DebugLogger.i(TAG, "  → Méthode: WebSocket (WS)")
+                        DebugLogger.i(TAG, "  → Auth: Simplifiée")
+                        DebugLogger.w(TAG, "  → Note: TV ancienne - Envisager fallback vers 8002")
+                    }
+                    SamsungTVGeneration.LEGACY -> {
+                        DebugLogger.w(TAG, "  → Méthode: TCP Legacy (protocole propriétaire)")
+                        DebugLogger.w(TAG, "  → Note: TV très ancienne (${protocol.generation.yearRange})")
+                        DebugLogger.w(TAG, "  → Support limité - Mise à jour TV recommandée")
+                    }
+                    else -> {
+                        DebugLogger.w(TAG, "  → Protocole non identifié")
+                    }
+                }
+            }
+
+            // Si plusieurs protocoles détectés, logger l'info
+            if (detectedProtocols.size > 1) {
+                DebugLogger.i(TAG, "ℹ️  TV multi-protocole détectée ($ip):")
+                detectedProtocols.forEach { protocol ->
+                    DebugLogger.d(TAG, "  - Port ${protocol.port}: ${protocol.generation.displayName}")
+                }
+                DebugLogger.i(TAG, "  → Utilisation du protocole le plus moderne (${recommendedProtocol?.port})")
+            }
         }
 
-        null
+        result
     }
 
     /**
@@ -100,27 +174,34 @@ class NetworkScanner(private val context: Context) {
     }
 
     /**
-     * Scanne le réseau local pour trouver des TV Samsung
+     * Scanne le réseau local pour trouver des TV Samsung avec détection multi-protocole
      */
     suspend fun scanNetwork(onProgress: (Int, Int) -> Unit = { _, _ -> }): List<SamsungTV> = withContext(Dispatchers.IO) {
-        DebugLogger.i(TAG, "=== Démarrage du scan réseau ===")
+        DebugLogger.i(TAG, "╔════════════════════════════════════════════════════════════╗")
+        DebugLogger.i(TAG, "║     SCAN RÉSEAU SAMSUNG TV - MODE MULTI-GÉNÉRATION        ║")
+        DebugLogger.i(TAG, "╚════════════════════════════════════════════════════════════╝")
 
         val localIp = getLocalIpAddress()
         if (localIp == null) {
-            DebugLogger.e(TAG, "Impossible de récupérer l'IP locale")
+            DebugLogger.e(TAG, "❌ Impossible de récupérer l'IP locale")
             return@withContext emptyList()
         }
 
-        DebugLogger.i(TAG, "IP locale: $localIp")
+        DebugLogger.i(TAG, "📱 IP locale: $localIp")
 
         // Extraire le préfixe réseau (ex: 192.168.1)
         val networkPrefix = localIp.substringBeforeLast(".")
-        DebugLogger.i(TAG, "Préfixe réseau: $networkPrefix.x")
+        DebugLogger.i(TAG, "🌐 Préfixe réseau: $networkPrefix.x")
+        DebugLogger.i(TAG, "🔍 Ports scannés: ${SAMSUNG_PORTS.joinToString(", ")}")
+        DebugLogger.i(TAG, "  - Port 55000: Legacy (2011-2015) - TCP propriétaire")
+        DebugLogger.i(TAG, "  - Port 8001: Transition (2014-2016) - WebSocket")
+        DebugLogger.i(TAG, "  - Port 8002: Moderne (2016+) - WebSocket Secure")
 
         val foundDevices = mutableListOf<SamsungTV>()
         val totalHosts = 254 // Scan 1-254
 
-        DebugLogger.i(TAG, "Scan de $totalHosts adresses IP...")
+        DebugLogger.i(TAG, "")
+        DebugLogger.i(TAG, "🚀 Démarrage du scan de $totalHosts adresses IP...")
 
         // Scanner par lots pour éviter trop de connexions simultanées
         val ipsToScan = (1..254).map { "$networkPrefix.$it" }
@@ -129,15 +210,33 @@ class NetworkScanner(private val context: Context) {
             val scannedCount = chunkIndex * MAX_CONCURRENT_SCANS
             onProgress(scannedCount, totalHosts)
 
-            // Scanner le chunk en parallèle
+            // Scanner le chunk en parallèle avec détection multi-protocole
             val results = chunk.map { ip ->
                 async {
-                    val port = checkSamsungPorts(ip)
-                    if (port != null) {
-                        val hostname = resolveHostname(ip)
-                        val deviceName = hostname ?: "Samsung TV ($ip)"
-                        DebugLogger.i(TAG, "✓ TV Samsung trouvée: $deviceName à $ip:$port")
-                        SamsungTV(name = deviceName, ip = ip, port = port)
+                    val detection = detectSamsungProtocols(ip)
+                    if (detection.detectedProtocols.isNotEmpty()) {
+                        val protocol = detection.recommendedProtocol!!
+                        val deviceName = detection.hostname ?: "Samsung TV ($ip)"
+
+                        // Créer SamsungTV avec informations enrichies
+                        val tv = SamsungTV(
+                            name = deviceName,
+                            ip = ip,
+                            port = protocol.port,
+                            generation = protocol.generation,
+                            detectedProtocols = detection.detectedProtocols
+                        )
+
+                        // Logger le rapport complet de détection
+                        DebugLogger.i(TAG, "")
+                        DebugLogger.i(TAG, "═══════════════════════════════════════════════")
+                        val reportLines = detection.getDetectionReport().lines()
+                        reportLines.forEach { line ->
+                            DebugLogger.i(TAG, line)
+                        }
+                        DebugLogger.i(TAG, "═══════════════════════════════════════════════")
+
+                        tv
                     } else {
                         null
                     }
@@ -152,7 +251,40 @@ class NetworkScanner(private val context: Context) {
 
         onProgress(totalHosts, totalHosts)
 
-        DebugLogger.i(TAG, "=== Scan terminé: ${foundDevices.size} TV(s) trouvée(s) ===")
+        DebugLogger.i(TAG, "")
+        DebugLogger.i(TAG, "╔════════════════════════════════════════════════════════════╗")
+        DebugLogger.i(TAG, "║              RÉSULTAT DU SCAN RÉSEAU                       ║")
+        DebugLogger.i(TAG, "╚════════════════════════════════════════════════════════════╝")
+        DebugLogger.i(TAG, "")
+
+        if (foundDevices.isEmpty()) {
+            DebugLogger.w(TAG, "❌ AUCUNE TV SAMSUNG DÉTECTÉE")
+            DebugLogger.w(TAG, "")
+            DebugLogger.w(TAG, "Causes possibles:")
+            DebugLogger.w(TAG, "  1. TV éteinte ou en veille profonde")
+            DebugLogger.w(TAG, "  2. TV sur un réseau différent")
+            DebugLogger.w(TAG, "  3. Paramètre 'Notification d'accès' désactivé sur la TV")
+            DebugLogger.w(TAG, "  4. Pare-feu bloquant les connexions")
+            DebugLogger.w(TAG, "")
+            DebugLogger.w(TAG, "Solutions:")
+            DebugLogger.w(TAG, "  → Vérifier Menu TV → Général → Gestionnaire de périphériques")
+            DebugLogger.w(TAG, "  → Activer 'Notification d'accès'")
+            DebugLogger.w(TAG, "  → Utiliser 'IP Manuelle' si vous connaissez l'IP de la TV")
+        } else {
+            DebugLogger.i(TAG, "✓ ${foundDevices.size} TV SAMSUNG DÉTECTÉE(S)")
+            DebugLogger.i(TAG, "")
+            foundDevices.forEach { tv ->
+                DebugLogger.i(TAG, "📺 ${tv.getDetailedDescription()}")
+                DebugLogger.i(TAG, "  IP: ${tv.ip}:${tv.port}")
+                tv.getProtocolSummary()?.let { summary ->
+                    DebugLogger.i(TAG, "  Protocoles: $summary")
+                }
+            }
+        }
+
+        DebugLogger.i(TAG, "")
+        DebugLogger.i(TAG, "╚════════════════════════════════════════════════════════════╝")
+
         foundDevices.toList()
     }
 
@@ -165,7 +297,8 @@ class NetworkScanner(private val context: Context) {
         endRange: Int = 50,
         onProgress: (Int, Int) -> Unit = { _, _ -> }
     ): List<SamsungTV> = withContext(Dispatchers.IO) {
-        DebugLogger.i(TAG, "Scan rapide: $networkPrefix.$startRange-$endRange")
+        DebugLogger.i(TAG, "🔍 Scan rapide: $networkPrefix.$startRange-$endRange")
+        DebugLogger.i(TAG, "Ports testés: ${SAMSUNG_PORTS.joinToString(", ")}")
 
         val foundDevices = mutableListOf<SamsungTV>()
         val totalHosts = endRange - startRange + 1
@@ -178,11 +311,17 @@ class NetworkScanner(private val context: Context) {
 
             val results = chunk.map { ip ->
                 async {
-                    val port = checkSamsungPorts(ip)
-                    if (port != null) {
-                        val hostname = resolveHostname(ip)
-                        val deviceName = hostname ?: "Samsung TV ($ip)"
-                        SamsungTV(name = deviceName, ip = ip, port = port)
+                    val detection = detectSamsungProtocols(ip)
+                    if (detection.detectedProtocols.isNotEmpty()) {
+                        val protocol = detection.recommendedProtocol!!
+                        val deviceName = detection.hostname ?: "Samsung TV ($ip)"
+                        SamsungTV(
+                            name = deviceName,
+                            ip = ip,
+                            port = protocol.port,
+                            generation = protocol.generation,
+                            detectedProtocols = detection.detectedProtocols
+                        )
                     } else {
                         null
                     }
@@ -194,7 +333,7 @@ class NetworkScanner(private val context: Context) {
 
         onProgress(totalHosts, totalHosts)
 
-        DebugLogger.i(TAG, "Scan rapide terminé: ${foundDevices.size} TV(s) trouvée(s)")
+        DebugLogger.i(TAG, "✓ Scan rapide terminé: ${foundDevices.size} TV(s) trouvée(s)")
         foundDevices.toList()
     }
 }
