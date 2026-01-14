@@ -174,7 +174,7 @@ class TVDiscoveryService(private val context: Context) {
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to release multicast lock", e)
-                    DebugLogger.w(TAG, "Erreur lors de la libération du multicast lock", e)
+                    DebugLogger.w(TAG, "Erreur lors de la libération du multicast lock: ${e.message}")
                 }
             }
         }
