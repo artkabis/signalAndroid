@@ -74,7 +74,9 @@ class SamsungWebSocketClient(
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                DebugLogger.d(TAG, "← Message reçu: ${text.take(100)}${if (text.length > 100) "..." else ""}")
+                // Log le message complet pour le debug (sans troncature)
+                DebugLogger.d(TAG, "← Message WebSocket reçu:")
+                DebugLogger.d(TAG, text)
                 handleMessage(text)
             }
 
@@ -135,37 +137,103 @@ class SamsungWebSocketClient(
             val response = gson.fromJson(text, Map::class.java)
             val event = response["event"] as? String
 
+            DebugLogger.i(TAG, "📩 Event: $event")
+
             when (event) {
                 "ms.channel.connect" -> {
                     val data = response["data"] as? Map<*, *>
-                    val token = data?.get("token") as? String
 
-                    if (token != null) {
+                    // Logger toutes les données reçues pour debug
+                    DebugLogger.d(TAG, "═══ Données ms.channel.connect ═══")
+                    data?.forEach { (key, value) ->
+                        DebugLogger.d(TAG, "  $key: $value")
+                    }
+                    DebugLogger.d(TAG, "═════════════════════════════════")
+
+                    // Vérifier plusieurs emplacements possibles pour le token
+                    var token: String? = data?.get("token") as? String
+
+                    // Pour certaines TV, le token peut être dans clients[0].attributes.token
+                    if (token == null) {
+                        val clients = data?.get("clients") as? List<*>
+                        if (clients != null && clients.isNotEmpty()) {
+                            val firstClient = clients[0] as? Map<*, *>
+                            val attributes = firstClient?.get("attributes") as? Map<*, *>
+                            token = attributes?.get("token") as? String
+                            if (token != null) {
+                                DebugLogger.d(TAG, "Token trouvé dans clients[0].attributes.token")
+                            }
+                        }
+                    }
+
+                    // Pour certaines TV, le token peut être dans data.id (utilisé comme token)
+                    if (token == null) {
+                        val id = data?.get("id") as? String
+                        if (id != null) {
+                            DebugLogger.d(TAG, "Pas de token explicite - utilisation de l'ID comme token potentiel")
+                            DebugLogger.d(TAG, "ID de session: $id")
+                        }
+                    }
+
+                    if (token != null && token.isNotEmpty()) {
                         // Save token for future connections
                         prefsManager?.saveAuthToken(token)
                         DebugLogger.i(TAG, "✓ Token d'authentification reçu et sauvegardé")
+                        DebugLogger.i(TAG, "  Token: ${token.take(20)}...${token.takeLast(10)} (${token.length} chars)")
                         listener?.onAuthSuccess()
                     } else {
-                        DebugLogger.w(TAG, "⚠ Aucun token reçu, authentification requise")
+                        DebugLogger.w(TAG, "⚠ Aucun token dans ms.channel.connect")
+                        DebugLogger.w(TAG, "  → Pour les TV Transition/Legacy:")
+                        DebugLogger.w(TAG, "     1. Acceptez la demande de connexion sur l'écran TV")
+                        DebugLogger.w(TAG, "     2. Le token sera envoyé après validation")
+                        DebugLogger.w(TAG, "     3. Ou entrez le PIN affiché sur la TV")
                         listener?.onAuthRequired()
                     }
                 }
+
+                "ms.channel.ready" -> {
+                    // Certaines TV envoient ce message après acceptation
+                    DebugLogger.i(TAG, "✓ Canal prêt (ms.channel.ready)")
+                    val data = response["data"] as? Map<*, *>
+                    val token = data?.get("token") as? String
+
+                    if (token != null && token.isNotEmpty()) {
+                        prefsManager?.saveAuthToken(token)
+                        DebugLogger.i(TAG, "✓ Token reçu dans ms.channel.ready et sauvegardé")
+                        listener?.onAuthSuccess()
+                    } else {
+                        DebugLogger.d(TAG, "ms.channel.ready sans token - connexion établie")
+                    }
+                }
+
+                "ms.channel.clientConnect" -> {
+                    // Message quand un client se connecte
+                    DebugLogger.i(TAG, "✓ Client connecté (ms.channel.clientConnect)")
+                }
+
                 "ms.channel.unauthorized" -> {
                     DebugLogger.w(TAG, "⚠ Non autorisé - nouvelle authentification requise")
                     listener?.onAuthRequired()
                 }
+
                 "ms.error" -> {
                     val data = response["data"] as? Map<*, *>
                     val message = data?.get("message") as? String
                     DebugLogger.e(TAG, "❌ Erreur de la TV: ${message ?: "Inconnue"}")
                     listener?.onError(message ?: "Unknown error from TV")
                 }
+
                 else -> {
                     DebugLogger.d(TAG, "Event non géré: $event")
+                    // Logger les données pour debug
+                    if (response["data"] != null) {
+                        DebugLogger.d(TAG, "  Données: ${response["data"]}")
+                    }
                 }
             }
         } catch (e: Exception) {
             DebugLogger.e(TAG, "❌ Échec du parsing du message", e)
+            DebugLogger.e(TAG, "  Message: $text")
         }
     }
 
