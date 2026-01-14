@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
+    android:padding="20dp"
+    android:background="@color/background_light"
     tools:context=".ui.MainActivity">
 
     <TextView
@@ -12,12 +13,14 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/app_name"
-        android:textSize="24sp"
+        android:textSize="32sp"
         android:textStyle="bold"
+        android:textColor="@color/text_primary"
+        android:letterSpacing="0.01"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        android:layout_marginTop="32dp" />
+        android:layout_marginTop="24dp" />
 
     <ProgressBar
         android:id="@+id/progressBar"
@@ -34,11 +37,13 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:textSize="16sp"
+        android:textSize="18sp"
+        android:textColor="@color/text_secondary"
+        android:letterSpacing="0.01"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/titleText"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="16dp"
         tools:text="Aucune TV trouvée" />
 
     <!-- Boutons de test -->
@@ -48,69 +53,95 @@
         android:layout_height="wrap_content"
         android:text="Boutons de test :"
         android:textStyle="bold"
-        android:textSize="14sp"
+        android:textSize="18sp"
+        android:textColor="@color/text_primary"
+        android:letterSpacing="0.02"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/statusText"
-        android:layout_marginTop="16dp" />
+        android:layout_marginTop="24dp" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/testMuteButton"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="64dp"
         android:text="Test MUTE"
-        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        style="@style/Widget.Material3.Button.Outlined"
+        app:strokeWidth="2dp"
+        app:strokeColor="@color/primary_blue"
+        android:textColor="@color/primary_blue"
         app:layout_constraintEnd_toStartOf="@id/scanWifiButton"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/testButtonsLabel"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="4dp" />
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="6dp" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/scanWifiButton"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="64dp"
         android:text="Scan WiFi"
-        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        style="@style/Widget.Material3.Button.Outlined"
+        app:strokeWidth="2dp"
+        app:strokeColor="@color/primary_blue"
+        android:textColor="@color/primary_blue"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/testMuteButton"
         app:layout_constraintTop_toBottomOf="@id/testButtonsLabel"
-        android:layout_marginTop="8dp"
-        android:layout_marginStart="4dp" />
+        android:layout_marginTop="12dp"
+        android:layout_marginStart="6dp" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/manualIpButton"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="64dp"
         android:text="IP Manuelle"
-        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        style="@style/Widget.Material3.Button.Outlined"
+        app:strokeWidth="2dp"
+        app:strokeColor="@color/primary_blue"
+        android:textColor="@color/primary_blue"
         app:layout_constraintEnd_toStartOf="@id/universalRemoteButton"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/testMuteButton"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="4dp" />
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="6dp" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/universalRemoteButton"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="64dp"
         android:text="Télécommande"
-        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        style="@style/Widget.Material3.Button.Outlined"
+        app:strokeWidth="2dp"
+        app:strokeColor="@color/primary_blue"
+        android:textColor="@color/primary_blue"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/manualIpButton"
         app:layout_constraintTop_toBottomOf="@id/scanWifiButton"
-        android:layout_marginTop="8dp"
-        android:layout_marginStart="4dp" />
+        android:layout_marginTop="10dp"
+        android:layout_marginStart="6dp" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/previewRemoteButton"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="68dp"
         android:text="👁️ Aperçu Interface"
-        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        style="@style/Widget.Material3.Button.Filled"
+        app:backgroundTint="@color/accent_teal"
+        android:textColor="@color/white"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/universalRemoteButton"
-        android:layout_marginTop="8dp" />
+        android:layout_marginTop="12dp" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tvListRecyclerView"
@@ -126,12 +157,16 @@
     <com.google.android.material.button.MaterialButton
         android:id="@+id/searchButton"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="68dp"
         android:text="@string/search_tv"
-        android:padding="16dp"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        style="@style/Widget.Material3.Button.Filled"
+        app:backgroundTint="@color/primary_blue"
+        android:textColor="@color/white"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="20dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
