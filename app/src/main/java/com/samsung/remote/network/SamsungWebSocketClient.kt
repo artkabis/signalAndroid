@@ -6,6 +6,7 @@ import android.util.Base64
 import android.util.Log
 import com.google.gson.Gson
 import com.samsung.remote.model.RemoteKey
+import com.samsung.remote.util.DebugLogger
 import com.samsung.remote.util.PreferencesManager
 import okhttp3.*
 import java.util.concurrent.TimeUnit
@@ -52,14 +53,14 @@ class SamsungWebSocketClient(
         val authToken = token ?: prefsManager?.getAuthToken()
 
         val url = if (authToken != null) {
-            Log.d(TAG, "Using saved authentication token")
+            DebugLogger.d(TAG, "✓ Utilisation du token d'authentification sauvegardé")
             "${tv.getWebSocketUrl()}?name=$nameEncoded&token=$authToken"
         } else {
-            Log.d(TAG, "No token available, initiating new pairing")
+            DebugLogger.d(TAG, "Pas de token disponible, nouveau pairing requis")
             "${tv.getWebSocketUrl()}?name=$nameEncoded"
         }
 
-        Log.d(TAG, "Connecting to: $url")
+        DebugLogger.i(TAG, "Connexion à: ${tv.name} (${tv.ip}:${tv.port})")
 
         val request = Request.Builder()
             .url(url)
@@ -67,29 +68,29 @@ class SamsungWebSocketClient(
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                Log.d(TAG, "WebSocket opened")
+                DebugLogger.i(TAG, "✓ WebSocket ouvert avec succès")
                 startKeepAlive()
                 listener?.onConnected()
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                Log.d(TAG, "Message received: $text")
+                DebugLogger.d(TAG, "← Message reçu: ${text.take(100)}${if (text.length > 100) "..." else ""}")
                 handleMessage(text)
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                Log.d(TAG, "WebSocket closing: $code / $reason")
+                DebugLogger.w(TAG, "⚠ WebSocket en cours de fermeture: $code / $reason")
                 stopKeepAlive()
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                Log.d(TAG, "WebSocket closed: $code / $reason")
+                DebugLogger.w(TAG, "WebSocket fermé: $code / $reason")
                 stopKeepAlive()
                 listener?.onDisconnected()
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                Log.e(TAG, "WebSocket error", t)
+                DebugLogger.e(TAG, "❌ Erreur WebSocket: ${t.message}", t)
                 stopKeepAlive()
                 listener?.onError(t.message ?: "Unknown error")
             }
@@ -102,15 +103,14 @@ class SamsungWebSocketClient(
         keepAliveRunnable = object : Runnable {
             override fun run() {
                 if (isConnected()) {
-                    Log.d(TAG, "Sending keep-alive ping")
+                    DebugLogger.v(TAG, "♥ Keep-alive ping (connexion active)")
                     // Send a simple ping to keep connection alive
                     webSocket?.let { ws ->
                         try {
                             // OkHttp will handle ping/pong automatically
                             // We just log that the connection is still active
-                            Log.d(TAG, "Connection is active")
                         } catch (e: Exception) {
-                            Log.e(TAG, "Keep-alive failed", e)
+                            DebugLogger.e(TAG, "❌ Échec du keep-alive", e)
                         }
                     }
                     keepAliveHandler.postDelayed(this, KEEP_ALIVE_INTERVAL)
@@ -119,14 +119,14 @@ class SamsungWebSocketClient(
         }
 
         keepAliveHandler.postDelayed(keepAliveRunnable!!, KEEP_ALIVE_INTERVAL)
-        Log.d(TAG, "Keep-alive started")
+        DebugLogger.d(TAG, "Keep-alive démarré (intervalle: ${KEEP_ALIVE_INTERVAL/1000}s)")
     }
 
     private fun stopKeepAlive() {
         keepAliveRunnable?.let {
             keepAliveHandler.removeCallbacks(it)
             keepAliveRunnable = null
-            Log.d(TAG, "Keep-alive stopped")
+            DebugLogger.d(TAG, "Keep-alive arrêté")
         }
     }
 
@@ -143,23 +143,29 @@ class SamsungWebSocketClient(
                     if (token != null) {
                         // Save token for future connections
                         prefsManager?.saveAuthToken(token)
-                        Log.d(TAG, "Auth token saved successfully")
+                        DebugLogger.i(TAG, "✓ Token d'authentification reçu et sauvegardé")
                         listener?.onAuthSuccess()
                     } else {
+                        DebugLogger.w(TAG, "⚠ Aucun token reçu, authentification requise")
                         listener?.onAuthRequired()
                     }
                 }
                 "ms.channel.unauthorized" -> {
+                    DebugLogger.w(TAG, "⚠ Non autorisé - nouvelle authentification requise")
                     listener?.onAuthRequired()
                 }
                 "ms.error" -> {
                     val data = response["data"] as? Map<*, *>
                     val message = data?.get("message") as? String
+                    DebugLogger.e(TAG, "❌ Erreur de la TV: ${message ?: "Inconnue"}")
                     listener?.onError(message ?: "Unknown error from TV")
+                }
+                else -> {
+                    DebugLogger.d(TAG, "Event non géré: $event")
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse message", e)
+            DebugLogger.e(TAG, "❌ Échec du parsing du message", e)
         }
     }
 
@@ -175,7 +181,7 @@ class SamsungWebSocketClient(
         )
 
         val json = gson.toJson(message)
-        Log.d(TAG, "Sending key: $json")
+        DebugLogger.d(TAG, "→ Envoi touche: ${key.keyCode}")
         webSocket?.send(json)
     }
 
@@ -199,10 +205,11 @@ class SamsungWebSocketClient(
             )
 
             val json = gson.toJson(message)
-            Log.d(TAG, "Sending text (direct): $text")
+            DebugLogger.i(TAG, "→ Envoi texte (SendInputString): \"$text\"")
             webSocket?.send(json)
         } else {
             // Méthode 2 : Envoyer caractère par caractère (fallback)
+            DebugLogger.d(TAG, "→ Envoi texte (char par char fallback): \"$text\"")
             sendTextCharByChar(text)
         }
     }
@@ -212,7 +219,7 @@ class SamsungWebSocketClient(
      * Méthode plus lente mais compatible avec toutes les TV
      */
     private fun sendTextCharByChar(text: String) {
-        Log.d(TAG, "Sending text char by char: $text")
+        DebugLogger.d(TAG, "Envoi caractère par caractère (${text.length} chars): \"$text\"")
 
         text.forEach { char ->
             val keyCode = when (char.uppercaseChar()) {
