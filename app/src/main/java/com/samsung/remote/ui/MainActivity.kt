@@ -304,32 +304,87 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showManualIpDialog() {
-        val input = EditText(this)
-        input.hint = "192.168.1.100"
+        val dialogView = layoutInflater.inflate(android.R.layout.simple_list_item_1, null)
+
+        // Créer un layout vertical
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(50, 20, 50, 20)
+        }
+
+        // Champ IP
+        val ipInput = EditText(this).apply {
+            hint = "192.168.1.44"
+            setText("192.168.1.44") // Pré-remplir avec l'IP détectée
+        }
+        layout.addView(ipInput)
+
+        // Radio buttons pour le port
+        val portGroup = android.widget.RadioGroup(this).apply {
+            orientation = android.widget.RadioGroup.HORIZONTAL
+        }
+
+        val port8002 = android.widget.RadioButton(this).apply {
+            text = "Port 8002 (WSS)"
+            id = 8002
+            isChecked = true // Sélectionné par défaut
+        }
+
+        val port8001 = android.widget.RadioButton(this).apply {
+            text = "Port 8001 (WS)"
+            id = 8001
+        }
+
+        val port55000 = android.widget.RadioButton(this).apply {
+            text = "Port 55000 (Legacy)"
+            id = 55000
+        }
+
+        portGroup.addView(port8002)
+        portGroup.addView(port8001)
+        portGroup.addView(port55000)
+
+        val portLabel = android.widget.TextView(this).apply {
+            text = "Sélectionnez le port:"
+            textSize = 14f
+            setPadding(0, 30, 0, 10)
+        }
+
+        layout.addView(portLabel)
+        layout.addView(portGroup)
 
         AlertDialog.Builder(this)
-            .setTitle("Entrée manuelle de l'IP TV")
-            .setMessage("Entrez l'adresse IP de votre TV Samsung:")
-            .setView(input)
+            .setTitle("Connexion manuelle TV Samsung")
+            .setMessage("Entrez l'IP et choisissez le port:\n\n⚠️ Votre TV a été détectée sur port 8001,\nmais le port 8002 pourrait afficher\nle popup de pairing.")
+            .setView(layout)
             .setPositiveButton("Connecter") { _, _ ->
-                val ip = input.text.toString().trim()
-                if (ip.isNotEmpty()) {
-                    connectToManualIP(ip)
+                val ip = ipInput.text.toString().trim()
+                val port = portGroup.checkedRadioButtonId
+
+                if (ip.isNotEmpty() && port != -1) {
+                    connectToManualIP(ip, port)
                 } else {
-                    Toast.makeText(this, "IP invalide", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "IP ou port invalide", Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("Annuler", null)
             .show()
     }
 
-    private fun connectToManualIP(ip: String) {
-        DebugLogger.i("MainActivity", "Connexion manuelle à l'IP: $ip")
+    private fun connectToManualIP(ip: String, port: Int = 8002) {
+        val portName = when(port) {
+            8002 -> "WSS"
+            8001 -> "WS"
+            55000 -> "Legacy"
+            else -> port.toString()
+        }
 
-        val manualTV = SamsungTV("TV Manuel ($ip)", ip, 8002)
+        DebugLogger.i("MainActivity", "Connexion manuelle à l'IP: $ip:$port ($portName)")
+
+        val manualTV = SamsungTV("TV Manuel ($ip)", ip, port)
         prefsManager.saveTV(manualTV.name, manualTV.ip, manualTV.port)
 
-        Toast.makeText(this, "Connexion à $ip...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Test connexion $ip:$port ($portName)...", Toast.LENGTH_SHORT).show()
         navigateToPairing(manualTV)
     }
 
