@@ -10,6 +10,7 @@ enum class RemoteKey(val keyCode: String) {
     KEY_INFO("KEY_INFO"),
     KEY_HOME("KEY_HOME"),
     KEY_RETURN("KEY_RETURN"),
+    KEY_SEARCH("KEY_SEARCH"),
 
     // Navigation
     KEY_UP("KEY_UP"),

@@ -3,6 +3,8 @@ package com.samsung.remote.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -27,9 +29,17 @@ class RemoteControlActivity : AppCompatActivity() {
     private lateinit var voiceInputManager: VoiceInputManager
     private var voiceInputDialog: AlertDialog? = null
     private var recognizedText: String = ""
+    private var isConnected: Boolean = false
+
+    // Auto-reconnection
+    private val reconnectHandler = Handler(Looper.getMainLooper())
+    private var reconnectAttempts = 0
+    private val maxReconnectAttempts = 5
+    private var isReconnecting = false
 
     companion object {
         private const val REQUEST_RECORD_AUDIO_PERMISSION = 200
+        private const val RECONNECT_DELAY_BASE = 2000L // 2 seconds base delay
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,23 +64,44 @@ class RemoteControlActivity : AppCompatActivity() {
     }
 
     private fun setupWebSocket() {
-        webSocketClient = SamsungWebSocketClient(tv)
+        webSocketClient = SamsungWebSocketClient(tv, "AndroidRemote", prefsManager)
         webSocketClient.setConnectionListener(object : SamsungWebSocketClient.ConnectionListener {
             override fun onConnected() {
                 runOnUiThread {
+                    isConnected = true
+                    reconnectAttempts = 0 // Reset reconnection attempts on successful connection
+                    isReconnecting = false
+                    updateConnectionStatus(ConnectionStatus.CONNECTED)
+                    updateButtonsState(true)
                     Toast.makeText(this@RemoteControlActivity, "Connecté à ${tv.name}", Toast.LENGTH_SHORT).show()
                 }
             }
 
             override fun onDisconnected() {
                 runOnUiThread {
+                    isConnected = false
+                    updateConnectionStatus(ConnectionStatus.DISCONNECTED)
+                    updateButtonsState(false)
                     Toast.makeText(this@RemoteControlActivity, "Déconnecté", Toast.LENGTH_SHORT).show()
+
+                    // Attempt automatic reconnection
+                    if (!isReconnecting) {
+                        attemptReconnect()
+                    }
                 }
             }
 
             override fun onError(error: String) {
                 runOnUiThread {
+                    isConnected = false
+                    updateConnectionStatus(ConnectionStatus.ERROR)
+                    updateButtonsState(false)
                     Toast.makeText(this@RemoteControlActivity, "Erreur: $error", Toast.LENGTH_SHORT).show()
+
+                    // Attempt automatic reconnection on error
+                    if (!isReconnecting) {
+                        attemptReconnect()
+                    }
                 }
             }
 
@@ -92,12 +123,127 @@ class RemoteControlActivity : AppCompatActivity() {
     }
 
     private fun connectToTV() {
+        updateConnectionStatus(ConnectionStatus.CONNECTING)
         val token = prefsManager.getAuthToken()
         if (token != null) {
             webSocketClient.connect(token)
         } else {
             webSocketClient.connect()
         }
+    }
+
+    private enum class ConnectionStatus {
+        CONNECTING,
+        CONNECTED,
+        DISCONNECTED,
+        ERROR
+    }
+
+    private fun updateConnectionStatus(status: ConnectionStatus) {
+        val (text, color) = when (status) {
+            ConnectionStatus.CONNECTING -> {
+                R.string.connection_status_connecting to 0xFFFFA500.toInt() // Orange
+            }
+            ConnectionStatus.CONNECTED -> {
+                R.string.connection_status_connected to 0xFF00C853.toInt() // Green
+            }
+            ConnectionStatus.DISCONNECTED -> {
+                R.string.connection_status_disconnected to 0xFF9E9E9E.toInt() // Gray
+            }
+            ConnectionStatus.ERROR -> {
+                R.string.connection_status_error to 0xFFD32F2F.toInt() // Red
+            }
+        }
+
+        binding.connectionStatusTextView.setText(text)
+        binding.connectionStatusTextView.setTextColor(color)
+    }
+
+    private fun updateButtonsState(enabled: Boolean) {
+        // Power and Menu buttons
+        binding.powerButton.isEnabled = enabled
+        binding.sourceButton.isEnabled = enabled
+        binding.menuButton.isEnabled = enabled
+
+        // Navigation buttons
+        binding.upButton.isEnabled = enabled
+        binding.downButton.isEnabled = enabled
+        binding.leftButton.isEnabled = enabled
+        binding.rightButton.isEnabled = enabled
+        binding.okButton.isEnabled = enabled
+
+        // Back and Home buttons
+        binding.backButton.isEnabled = enabled
+        binding.homeButton.isEnabled = enabled
+
+        // Volume and Channel buttons
+        binding.volumeUpButton.isEnabled = enabled
+        binding.volumeDownButton.isEnabled = enabled
+        binding.muteButton.isEnabled = enabled
+        binding.channelUpButton.isEnabled = enabled
+        binding.channelDownButton.isEnabled = enabled
+        binding.infoButton.isEnabled = enabled
+
+        // Media controls
+        binding.playButton.isEnabled = enabled
+        binding.pauseButton.isEnabled = enabled
+        binding.stopButton.isEnabled = enabled
+        binding.rewindButton.isEnabled = enabled
+        binding.forwardButton.isEnabled = enabled
+
+        // Number pad
+        binding.num0Button.isEnabled = enabled
+        binding.num1Button.isEnabled = enabled
+        binding.num2Button.isEnabled = enabled
+        binding.num3Button.isEnabled = enabled
+        binding.num4Button.isEnabled = enabled
+        binding.num5Button.isEnabled = enabled
+        binding.num6Button.isEnabled = enabled
+        binding.num7Button.isEnabled = enabled
+        binding.num8Button.isEnabled = enabled
+        binding.num9Button.isEnabled = enabled
+
+        // Voice input button
+        binding.voiceInputButton.isEnabled = enabled
+    }
+
+    private fun attemptReconnect() {
+        if (reconnectAttempts >= maxReconnectAttempts) {
+            Toast.makeText(
+                this,
+                "Échec de la reconnexion après $maxReconnectAttempts tentatives",
+                Toast.LENGTH_LONG
+            ).show()
+            reconnectAttempts = 0
+            isReconnecting = false
+            return
+        }
+
+        isReconnecting = true
+        reconnectAttempts++
+
+        // Exponential backoff: 2s, 4s, 8s, 16s, 32s
+        val delay = RECONNECT_DELAY_BASE * (1 shl (reconnectAttempts - 1))
+
+        Toast.makeText(
+            this,
+            "Tentative de reconnexion ($reconnectAttempts/$maxReconnectAttempts) dans ${delay / 1000}s...",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        updateConnectionStatus(ConnectionStatus.CONNECTING)
+
+        reconnectHandler.postDelayed({
+            if (!isConnected) {
+                connectToTV()
+            }
+        }, delay)
+    }
+
+    private fun cancelReconnect() {
+        reconnectHandler.removeCallbacksAndMessages(null)
+        isReconnecting = false
+        reconnectAttempts = 0
     }
 
     private fun setupButtons() {
@@ -287,9 +433,17 @@ class RemoteControlActivity : AppCompatActivity() {
 
     private fun sendTextToTV(text: String) {
         if (webSocketClient.isConnected()) {
-            // Essayer d'abord la méthode directe (SendInputString)
-            webSocketClient.sendText(text, useDirectMethod = true)
-            Toast.makeText(this, R.string.voice_input_sent, Toast.LENGTH_SHORT).show()
+            // First, send a search key to open the search bar
+            // This ensures the text input field is focused
+            webSocketClient.sendKey(RemoteKey.KEY_SEARCH)
+
+            // Wait a bit for the search bar to open, then send the text
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (webSocketClient.isConnected()) {
+                    webSocketClient.sendText(text, useDirectMethod = true)
+                    Toast.makeText(this, R.string.voice_input_sent, Toast.LENGTH_SHORT).show()
+                }
+            }, 500) // 500ms delay to allow search bar to open
         } else {
             Toast.makeText(this, "Non connecté à la TV", Toast.LENGTH_SHORT).show()
             connectToTV()
@@ -298,6 +452,7 @@ class RemoteControlActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        cancelReconnect()
         voiceInputManager.destroy()
         webSocketClient.disconnect()
         voiceInputDialog?.dismiss()

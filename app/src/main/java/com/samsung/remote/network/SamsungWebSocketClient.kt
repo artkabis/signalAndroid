@@ -1,26 +1,34 @@
 package com.samsung.remote.network
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Base64
 import android.util.Log
 import com.google.gson.Gson
 import com.samsung.remote.model.RemoteKey
+import com.samsung.remote.util.PreferencesManager
 import okhttp3.*
 import java.util.concurrent.TimeUnit
 
 class SamsungWebSocketClient(
     private val tv: com.samsung.remote.model.SamsungTV,
-    private val deviceName: String = "AndroidRemote"
+    private val deviceName: String = "AndroidRemote",
+    private val prefsManager: PreferencesManager? = null
 ) {
 
     private var webSocket: WebSocket? = null
     private val client = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
+        .pingInterval(30, TimeUnit.SECONDS)
         .build()
 
     private val gson = Gson()
+    private val keepAliveHandler = Handler(Looper.getMainLooper())
+    private var keepAliveRunnable: Runnable? = null
 
     companion object {
         private const val TAG = "SamsungWebSocket"
+        private const val KEEP_ALIVE_INTERVAL = 30000L // 30 seconds
     }
 
     interface ConnectionListener {
@@ -40,9 +48,14 @@ class SamsungWebSocketClient(
     fun connect(token: String? = null) {
         val nameEncoded = Base64.encodeToString(deviceName.toByteArray(), Base64.NO_WRAP)
 
-        val url = if (token != null) {
-            "${tv.getWebSocketUrl()}?name=$nameEncoded&token=$token"
+        // Use provided token, or try to load saved token
+        val authToken = token ?: prefsManager?.getAuthToken()
+
+        val url = if (authToken != null) {
+            Log.d(TAG, "Using saved authentication token")
+            "${tv.getWebSocketUrl()}?name=$nameEncoded&token=$authToken"
         } else {
+            Log.d(TAG, "No token available, initiating new pairing")
             "${tv.getWebSocketUrl()}?name=$nameEncoded"
         }
 
@@ -55,6 +68,7 @@ class SamsungWebSocketClient(
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 Log.d(TAG, "WebSocket opened")
+                startKeepAlive()
                 listener?.onConnected()
             }
 
@@ -65,18 +79,55 @@ class SamsungWebSocketClient(
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
                 Log.d(TAG, "WebSocket closing: $code / $reason")
+                stopKeepAlive()
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 Log.d(TAG, "WebSocket closed: $code / $reason")
+                stopKeepAlive()
                 listener?.onDisconnected()
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e(TAG, "WebSocket error", t)
+                stopKeepAlive()
                 listener?.onError(t.message ?: "Unknown error")
             }
         })
+    }
+
+    private fun startKeepAlive() {
+        stopKeepAlive() // Stop any existing keep-alive first
+
+        keepAliveRunnable = object : Runnable {
+            override fun run() {
+                if (isConnected()) {
+                    Log.d(TAG, "Sending keep-alive ping")
+                    // Send a simple ping to keep connection alive
+                    webSocket?.let { ws ->
+                        try {
+                            // OkHttp will handle ping/pong automatically
+                            // We just log that the connection is still active
+                            Log.d(TAG, "Connection is active")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Keep-alive failed", e)
+                        }
+                    }
+                    keepAliveHandler.postDelayed(this, KEEP_ALIVE_INTERVAL)
+                }
+            }
+        }
+
+        keepAliveHandler.postDelayed(keepAliveRunnable!!, KEEP_ALIVE_INTERVAL)
+        Log.d(TAG, "Keep-alive started")
+    }
+
+    private fun stopKeepAlive() {
+        keepAliveRunnable?.let {
+            keepAliveHandler.removeCallbacks(it)
+            keepAliveRunnable = null
+            Log.d(TAG, "Keep-alive stopped")
+        }
     }
 
     private fun handleMessage(text: String) {
@@ -91,6 +142,8 @@ class SamsungWebSocketClient(
 
                     if (token != null) {
                         // Save token for future connections
+                        prefsManager?.saveAuthToken(token)
+                        Log.d(TAG, "Auth token saved successfully")
                         listener?.onAuthSuccess()
                     } else {
                         listener?.onAuthRequired()
@@ -222,6 +275,7 @@ class SamsungWebSocketClient(
     }
 
     fun disconnect() {
+        stopKeepAlive()
         webSocket?.close(1000, "User disconnected")
         webSocket = null
     }

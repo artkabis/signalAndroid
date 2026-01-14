@@ -48,7 +48,7 @@ class PairingActivity : AppCompatActivity() {
     }
 
     private fun setupWebSocket() {
-        webSocketClient = SamsungWebSocketClient(tv)
+        webSocketClient = SamsungWebSocketClient(tv, "AndroidRemote", prefsManager)
         webSocketClient.setConnectionListener(object : SamsungWebSocketClient.ConnectionListener {
             override fun onConnected() {
                 runOnUiThread {
