@@ -21,6 +21,7 @@ import com.samsung.remote.adapter.TVListAdapter
 import com.samsung.remote.databinding.ActivityMainBinding
 import com.samsung.remote.model.RemoteKey
 import com.samsung.remote.model.SamsungTV
+import com.samsung.remote.network.NetworkScanner
 import com.samsung.remote.network.SamsungWebSocketClient
 import com.samsung.remote.network.TVDiscoveryService
 import com.samsung.remote.util.DebugLogger
@@ -33,6 +34,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var tvAdapter: TVListAdapter
     private lateinit var discoveryService: TVDiscoveryService
+    private lateinit var networkScanner: NetworkScanner
     private lateinit var prefsManager: PreferencesManager
 
     private val discoveredTVs = mutableListOf<SamsungTV>()
@@ -58,6 +60,7 @@ class MainActivity : AppCompatActivity() {
 
         prefsManager = PreferencesManager(this)
         discoveryService = TVDiscoveryService(this)
+        networkScanner = NetworkScanner(this)
 
         setupRecyclerView()
         setupButtons()
@@ -223,11 +226,9 @@ class MainActivity : AppCompatActivity() {
             testMuteCommand()
         }
 
-        // Bouton scan WiFi manuel
+        // Bouton scan réseau manuel
         binding.scanWifiButton.setOnClickListener {
-            checkLocationPermissions()
-            com.samsung.remote.util.NetworkInfoHelper.logNetworkInfo(this, "MainActivity")
-            Toast.makeText(this, "Scan WiFi effectué - Vérifiez les logs", Toast.LENGTH_SHORT).show()
+            startNetworkScan()
         }
 
         // Bouton entrée manuelle IP
@@ -357,6 +358,81 @@ class MainActivity : AppCompatActivity() {
                 }
                 .setNeutralButton("Annuler", null)
                 .show()
+        }
+    }
+
+    private fun startNetworkScan() {
+        DebugLogger.i("MainActivity", "=== Démarrage du scan réseau manuel ===")
+
+        // Vérifier connexion réseau
+        val networkInfo = com.samsung.remote.util.NetworkInfoHelper.getNetworkInfo(this)
+        if (!networkInfo.isConnected) {
+            Toast.makeText(this, "Aucune connexion réseau détectée", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        if (!networkInfo.isWifi) {
+            Toast.makeText(this, "Connectez-vous au Wi-Fi pour scanner le réseau", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        // Demander confirmation à l'utilisateur
+        AlertDialog.Builder(this)
+            .setTitle("Scanner le réseau?")
+            .setMessage("Le scan réseau va rechercher toutes les TV Samsung sur votre réseau local.\n\nCela peut prendre 15-30 secondes.")
+            .setPositiveButton("Scanner") { _, _ ->
+                performNetworkScan()
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
+    }
+
+    private fun performNetworkScan() {
+        discoveredTVs.clear()
+        tvAdapter.submitList(emptyList())
+
+        binding.progressBar.visibility = View.VISIBLE
+        binding.statusText.text = "Scan réseau en cours..."
+        binding.searchButton.isEnabled = false
+        binding.scanWifiButton.isEnabled = false
+
+        discoveryJob = lifecycleScope.launch {
+            try {
+                val tvList = networkScanner.scanNetwork { scanned, total ->
+                    runOnUiThread {
+                        binding.statusText.text = "Scan: $scanned/$total adresses..."
+                    }
+                }
+
+                if (tvList.isNotEmpty()) {
+                    discoveredTVs.addAll(tvList)
+                    tvAdapter.submitList(discoveredTVs.toList())
+                    binding.statusText.text = "${tvList.size} TV(s) Samsung trouvée(s)"
+                    Toast.makeText(
+                        this@MainActivity,
+                        "✓ ${tvList.size} TV(s) trouvée(s)!",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    binding.statusText.text = "Aucune TV Samsung trouvée sur le réseau"
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Aucune TV trouvée. Utilisez 'IP Manuelle' si vous connaissez l'IP de votre TV.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } catch (e: Exception) {
+                DebugLogger.e("MainActivity", "Erreur scan réseau", e)
+                Toast.makeText(
+                    this@MainActivity,
+                    "Erreur lors du scan: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                binding.progressBar.visibility = View.GONE
+                binding.searchButton.isEnabled = true
+                binding.scanWifiButton.isEnabled = true
+            }
         }
     }
 

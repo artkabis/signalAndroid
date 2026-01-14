@@ -81,7 +81,7 @@
         android:id="@+id/scanWifiButton"
         android:layout_width="0dp"
         android:layout_height="64dp"
-        android:text="Scan WiFi"
+        android:text="🔍 Scan Réseau"
         android:textSize="18sp"
         android:textStyle="bold"
         style="@style/Widget.Material3.Button.OutlinedButton"
