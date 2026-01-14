@@ -41,6 +41,66 @@
         android:layout_marginTop="24dp"
         tools:text="Aucune TV trouvée" />
 
+    <!-- Boutons de test -->
+    <TextView
+        android:id="@+id/testButtonsLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Boutons de test :"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/statusText"
+        android:layout_marginTop="16dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/testMuteButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Test MUTE"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        app:layout_constraintEnd_toStartOf="@id/scanWifiButton"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/testButtonsLabel"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="4dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/scanWifiButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Scan WiFi"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/testMuteButton"
+        app:layout_constraintTop_toBottomOf="@id/testButtonsLabel"
+        android:layout_marginTop="8dp"
+        android:layout_marginStart="4dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/manualIpButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="IP Manuelle"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        app:layout_constraintEnd_toStartOf="@id/universalRemoteButton"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/testMuteButton"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="4dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/universalRemoteButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Télécommande"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/manualIpButton"
+        app:layout_constraintTop_toBottomOf="@id/scanWifiButton"
+        android:layout_marginTop="8dp"
+        android:layout_marginStart="4dp" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tvListRecyclerView"
         android:layout_width="0dp"
@@ -49,7 +109,7 @@
         app:layout_constraintBottom_toTopOf="@id/searchButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/statusText"
+        app:layout_constraintTop_toBottomOf="@id/universalRemoteButton"
         android:layout_marginBottom="16dp" />
 
     <com.google.android.material.button.MaterialButton
