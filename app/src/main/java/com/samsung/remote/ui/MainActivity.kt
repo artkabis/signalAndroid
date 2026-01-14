@@ -239,6 +239,11 @@ class MainActivity : AppCompatActivity() {
         binding.universalRemoteButton.setOnClickListener {
             openUniversalRemote()
         }
+
+        // Bouton aperçu télécommande
+        binding.previewRemoteButton.setOnClickListener {
+            openRemotePreview()
+        }
     }
 
     private fun testMuteCommand() {
@@ -438,6 +443,17 @@ class MainActivity : AppCompatActivity() {
             putExtra("tv_name", tv.name)
             putExtra("tv_ip", tv.ip)
             putExtra("tv_port", tv.port)
+        }
+        startActivity(intent)
+    }
+
+    private fun openRemotePreview() {
+        DebugLogger.i("MainActivity", "Ouverture aperçu télécommande (mode preview)")
+        val intent = Intent(this, RemoteControlActivity::class.java).apply {
+            putExtra("tv_name", "Aperçu Télécommande")
+            putExtra("tv_ip", "0.0.0.0")
+            putExtra("tv_port", 8002)
+            putExtra("preview_mode", true) // Mode preview sans connexion
         }
         startActivity(intent)
     }

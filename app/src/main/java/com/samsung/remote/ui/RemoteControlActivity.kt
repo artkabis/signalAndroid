@@ -34,6 +34,7 @@ class RemoteControlActivity : AppCompatActivity() {
     private var voiceInputDialog: AlertDialog? = null
     private var recognizedText: String = ""
     private var isConnected: Boolean = false
+    private var isPreviewMode: Boolean = false // Mode aperçu sans connexion
 
     // Auto-reconnection
     private val reconnectHandler = Handler(Looper.getMainLooper())
@@ -59,16 +60,29 @@ class RemoteControlActivity : AppCompatActivity() {
         val tvName = intent.getStringExtra("tv_name") ?: "Samsung TV"
         val tvIp = intent.getStringExtra("tv_ip") ?: return finish()
         val tvPort = intent.getIntExtra("tv_port", 8002)
+        isPreviewMode = intent.getBooleanExtra("preview_mode", false)
 
         tv = SamsungTV(tvName, tvIp, tvPort)
         binding.tvNameTextView.text = tvName
 
-        DebugLogger.d("RemoteControlActivity", "TV cible: $tvName ($tvIp:$tvPort)")
+        if (isPreviewMode) {
+            DebugLogger.i("RemoteControlActivity", "📱 MODE APERÇU - Interface uniquement (pas de connexion)")
+            binding.connectionStatusTextView.text = "● Mode Aperçu"
+            binding.connectionStatusTextView.setTextColor(getColor(R.color.samsung_blue))
+        } else {
+            DebugLogger.d("RemoteControlActivity", "TV cible: $tvName ($tvIp:$tvPort)")
+        }
 
         setupWebSocket()
         setupButtons()
         setupVoiceInput()
-        connectToTV()
+
+        if (!isPreviewMode) {
+            connectToTV()
+        } else {
+            // En mode aperçu, activer tous les boutons pour permettre la visualisation
+            updateButtonsState(true)
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -350,6 +364,13 @@ class RemoteControlActivity : AppCompatActivity() {
     }
 
     private fun sendKey(key: RemoteKey) {
+        if (isPreviewMode) {
+            // En mode aperçu, afficher simplement l'action sans l'envoyer
+            Toast.makeText(this, "Mode Aperçu: ${key.keyCode}", Toast.LENGTH_SHORT).show()
+            DebugLogger.d("RemoteControlActivity", "Mode preview - Touche simulée: ${key.keyCode}")
+            return
+        }
+
         if (webSocketClient.isConnected()) {
             DebugLogger.d("RemoteControlActivity", "Envoi touche: ${key.keyCode}")
             webSocketClient.sendKey(key)
@@ -488,6 +509,13 @@ class RemoteControlActivity : AppCompatActivity() {
     }
 
     private fun sendTextToTV(text: String) {
+        if (isPreviewMode) {
+            // En mode aperçu, afficher simplement le texte qui aurait été envoyé
+            Toast.makeText(this, "Mode Aperçu - Texte: \"$text\"", Toast.LENGTH_LONG).show()
+            DebugLogger.d("RemoteControlActivity", "Mode preview - Texte simulé: \"$text\"")
+            return
+        }
+
         if (webSocketClient.isConnected()) {
             DebugLogger.i("RemoteControlActivity", "Envoi de texte vers la TV: \"$text\"")
 

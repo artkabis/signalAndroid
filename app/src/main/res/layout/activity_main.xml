@@ -101,6 +101,17 @@
         android:layout_marginTop="8dp"
         android:layout_marginStart="4dp" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/previewRemoteButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="👁️ Aperçu Interface"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/universalRemoteButton"
+        android:layout_marginTop="8dp" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tvListRecyclerView"
         android:layout_width="0dp"
@@ -109,7 +120,7 @@
         app:layout_constraintBottom_toTopOf="@id/searchButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/universalRemoteButton"
+        app:layout_constraintTop_toBottomOf="@id/previewRemoteButton"
         android:layout_marginBottom="16dp" />
 
     <com.google.android.material.button.MaterialButton

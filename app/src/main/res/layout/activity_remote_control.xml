@@ -10,18 +10,20 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:padding="20dp"
+        android:background="#F5F7FA">
 
         <TextView
             android:id="@+id/tvNameTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="18sp"
+            android:textSize="22sp"
             android:textStyle="bold"
+            android:textColor="@color/samsung_blue_dark"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="12dp"
             tools:text="Samsung TV" />
 
         <!-- Connection Status Indicator -->
@@ -29,13 +31,14 @@
             android:id="@+id/connectionStatusTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
+            android:textSize="16sp"
+            android:textStyle="bold"
             android:text="@string/connection_status_connecting"
             android:textColor="#FFA500"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvNameTextView"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="8dp"
             tools:text="● Connecté" />
 
         <!-- Voice Input Button (Microphone FAB) -->
@@ -43,10 +46,13 @@
             android:id="@+id/voiceInputButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="16dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginTop="8dp"
             android:src="@drawable/ic_microphone"
             android:contentDescription="@string/voice_input"
             app:tint="@android:color/white"
+            app:backgroundTint="@color/teal_700"
+            app:elevation="6dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -55,10 +61,14 @@
             android:id="@+id/powerButton"
             style="@style/RemoteButton"
             android:text="@string/power"
+            android:textSize="20sp"
+            android:layout_height="68dp"
+            android:backgroundTint="#E53935"
+            app:backgroundTint="#E53935"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/connectionStatusTextView"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="24dp"
             android:layout_marginStart="64dp"
             android:layout_marginEnd="64dp" />
 
@@ -86,59 +96,54 @@
         <!-- Navigation Pad -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/upButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Navigation"
             android:text="@string/up"
-            android:textSize="20sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/sourceButton"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="32dp"
             android:layout_marginStart="64dp"
             android:layout_marginEnd="64dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/leftButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Navigation"
             android:text="@string/left"
-            android:textSize="20sp"
             app:layout_constraintEnd_toStartOf="@id/okButton"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/upButton"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="12dp"
             android:layout_marginEnd="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/okButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.OK"
             android:text="@string/ok"
-            android:layout_height="60dp"
             app:layout_constraintEnd_toStartOf="@id/rightButton"
             app:layout_constraintStart_toEndOf="@id/leftButton"
             app:layout_constraintTop_toBottomOf="@id/upButton"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="12dp"
             android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/rightButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Navigation"
             android:text="@string/right"
-            android:textSize="20sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/okButton"
             app:layout_constraintTop_toBottomOf="@id/upButton"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="12dp"
             android:layout_marginStart="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/downButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Navigation"
             android:text="@string/down"
-            android:textSize="20sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/okButton"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="12dp"
             android:layout_marginStart="64dp"
             android:layout_marginEnd="64dp" />
 
@@ -171,8 +176,8 @@
             app:layout_constraintEnd_toStartOf="@id/muteButton"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/backButton"
-            android:layout_marginTop="24dp"
-            android:layout_marginEnd="4dp" />
+            android:layout_marginTop="32dp"
+            android:layout_marginEnd="6dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/muteButton"
@@ -181,9 +186,9 @@
             app:layout_constraintEnd_toStartOf="@id/channelUpButton"
             app:layout_constraintStart_toEndOf="@id/volumeUpButton"
             app:layout_constraintTop_toBottomOf="@id/backButton"
-            android:layout_marginTop="24dp"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="4dp" />
+            android:layout_marginTop="32dp"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="6dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/channelUpButton"
@@ -192,8 +197,8 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/muteButton"
             app:layout_constraintTop_toBottomOf="@id/backButton"
-            android:layout_marginTop="24dp"
-            android:layout_marginStart="4dp" />
+            android:layout_marginTop="32dp"
+            android:layout_marginStart="6dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/volumeDownButton"
@@ -233,9 +238,11 @@
             android:layout_height="wrap_content"
             android:text="Contrôles Média"
             android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="@color/samsung_blue_dark"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/volumeDownButton"
-            android:layout_marginTop="24dp" />
+            android:layout_marginTop="32dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/playButton"
@@ -295,9 +302,11 @@
             android:layout_height="wrap_content"
             android:text="Pavé Numérique"
             android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="@color/samsung_blue_dark"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/rewindButton"
-            android:layout_marginTop="24dp" />
+            android:layout_marginTop="32dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/num1Button"
