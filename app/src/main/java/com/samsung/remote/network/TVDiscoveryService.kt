@@ -31,11 +31,17 @@ class TVDiscoveryService(private val context: Context) {
         DebugLogger.d(TAG, "Type de service recherché: $SERVICE_TYPE")
 
         // Acquire multicast lock for NSD to work properly
-        val multicastLock = wifiManager.createMulticastLock("SamsungRemoteNSD").apply {
-            setReferenceCounted(true)
-            acquire()
+        var multicastLock: WifiManager.MulticastLock? = null
+        try {
+            multicastLock = wifiManager.createMulticastLock("SamsungRemoteNSD").apply {
+                setReferenceCounted(true)
+                acquire()
+            }
+            DebugLogger.i(TAG, "✓ Multicast lock acquis pour NSD")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to acquire multicast lock", e)
+            DebugLogger.w(TAG, "Impossible d'acquérir le multicast lock: ${e.message}")
         }
-        DebugLogger.i(TAG, "✓ Multicast lock acquis pour NSD")
 
         val discoveredTVs = mutableSetOf<String>()
 
@@ -160,14 +166,16 @@ class TVDiscoveryService(private val context: Context) {
             }
 
             // Release multicast lock
-            try {
-                if (multicastLock.isHeld) {
-                    multicastLock.release()
-                    DebugLogger.d(TAG, "✓ Multicast lock libéré")
+            multicastLock?.let { lock ->
+                try {
+                    if (lock.isHeld) {
+                        lock.release()
+                        DebugLogger.d(TAG, "✓ Multicast lock libéré")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to release multicast lock", e)
+                    DebugLogger.w(TAG, "Erreur lors de la libération du multicast lock", e)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to release multicast lock", e)
-                DebugLogger.w(TAG, "Erreur lors de la libération du multicast lock", e)
             }
         }
     }
