@@ -56,6 +56,12 @@
     <string name="num_8">8</string>
     <string name="num_9">9</string>
 
+    <!-- Connection Status -->
+    <string name="connection_status_connecting">● Connexion en cours…</string>
+    <string name="connection_status_connected">● Connecté</string>
+    <string name="connection_status_disconnected">● Déconnecté</string>
+    <string name="connection_status_error">● Erreur de connexion</string>
+
     <!-- Voice Input -->
     <string name="voice_input">Saisie vocale</string>
     <string name="voice_input_listening">Parlez maintenant…</string>
