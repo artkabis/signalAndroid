@@ -64,7 +64,12 @@ class PairingActivity : AppCompatActivity() {
                 runOnUiThread {
                     DebugLogger.i("PairingActivity", "✓ Connecté à la TV")
                     binding.pairingProgressBar.visibility = View.GONE
-                    binding.pairingStatusText.text = "Connecté! Vérification..."
+                    binding.pairingStatusText.text = "Connecté! En attente du popup sur la TV..."
+
+                    // Show instructions for enabling network control if first connection
+                    if (prefsManager.getAuthToken() == null) {
+                        showTVSettingsInstructions()
+                    }
                 }
             }
 
@@ -81,7 +86,13 @@ class PairingActivity : AppCompatActivity() {
                     DebugLogger.e("PairingActivity", "❌ Erreur d'appairage: $error")
                     binding.pairingProgressBar.visibility = View.GONE
                     binding.pairingStatusText.text = "Erreur: $error"
-                    Toast.makeText(this@PairingActivity, error, Toast.LENGTH_SHORT).show()
+
+                    // Check if it's a connection error
+                    if (error.contains("Connection refused") || error.contains("connection abort")) {
+                        showTVSettingsInstructions()
+                    } else {
+                        Toast.makeText(this@PairingActivity, error, Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
 
@@ -140,6 +151,43 @@ class PairingActivity : AppCompatActivity() {
         DebugLogger.i("PairingActivity", "Connexion avec token sauvegardé")
         binding.pairingProgressBar.visibility = View.VISIBLE
         webSocketClient.connect(token)
+    }
+
+    private fun showTVSettingsInstructions() {
+        DebugLogger.i("PairingActivity", "Affichage des instructions de configuration TV")
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("⚙️ Configuration TV Samsung requise")
+            .setMessage("""
+                Si aucun popup n'apparaît sur votre TV, le contrôle réseau est probablement désactivé.
+
+                📺 Sur votre téléviseur Samsung :
+
+                Option 1 - Menu Système :
+                • Menu → Système/Général
+                • Gestionnaire de périphériques externes
+                • Gestionnaire de connexion des périphériques
+                • Activez "Autoriser les appareils"
+
+                Option 2 - Menu Réseau :
+                • Menu → Réseau → Expert
+                • Activez "Contrôle des périphériques"
+                • Activez "Smart View" si disponible
+
+                Option 3 - Accessibilité :
+                • Menu → Accessibilité
+                • Activez "Contrôle à distance"
+
+                Après activation, reconnectez-vous avec cette application.
+            """.trimIndent())
+            .setPositiveButton("J'ai configuré") { _, _ ->
+                // Retry connection
+                initiateConnection()
+            }
+            .setNegativeButton("Plus tard", null)
+            .setNeutralButton("Voir les logs") { _, _ ->
+                startActivity(Intent(this, DebugLogsActivity::class.java))
+            }
+            .show()
     }
 
     private fun navigateToRemoteControl() {
