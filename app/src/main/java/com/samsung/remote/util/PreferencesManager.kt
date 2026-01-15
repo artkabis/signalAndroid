@@ -73,6 +73,21 @@ class PreferencesManager(context: Context) {
         return "AndroidRemote-$uuid"
     }
 
+    /**
+     * Force la génération d'un nouveau UUID et supprime le token
+     * Utile quand la TV a mémorisé l'ancien nom et ne demande plus d'autorisation
+     */
+    fun resetDeviceIdentity() {
+        val newUuid = java.util.UUID.randomUUID().toString().substring(0, 8)
+        prefs.edit().apply {
+            putString(KEY_DEVICE_UUID, newUuid)
+            remove(KEY_AUTH_TOKEN) // Supprimer aussi le token
+            apply()
+        }
+        DebugLogger.i("PreferencesManager", "✓ Nouvelle identité générée: AndroidRemote-$newUuid")
+        DebugLogger.i("PreferencesManager", "  → Token supprimé, nouveau pairing requis")
+    }
+
     fun clearAll() {
         prefs.edit().clear().apply()
     }

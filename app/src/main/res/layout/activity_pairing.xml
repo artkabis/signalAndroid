@@ -87,6 +87,23 @@
         android:layout_marginTop="16dp" />
 
     <com.google.android.material.button.MaterialButton
+        android:id="@+id/resetIdentityButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="🔄 Forcer nouveau pairing"
+        android:textSize="16sp"
+        android:padding="12dp"
+        android:visibility="gone"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        app:strokeWidth="2dp"
+        app:strokeColor="@color/accent_teal"
+        android:textColor="@color/accent_teal"
+        app:layout_constraintBottom_toTopOf="@id/pairButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginBottom="12dp" />
+
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/pairButton"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
