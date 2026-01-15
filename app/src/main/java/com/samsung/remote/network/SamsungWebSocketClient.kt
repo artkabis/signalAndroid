@@ -193,10 +193,8 @@ class SamsungWebSocketClient(
                         listener?.onAuthSuccess()
                     } else {
                         DebugLogger.w(TAG, "⚠ Aucun token dans ms.channel.connect")
-                        DebugLogger.i(TAG, "  → Envoi d'une demande de pairing explicite...")
-
-                        // Send explicit pairing request
-                        sendPairingRequest()
+                        DebugLogger.i(TAG, "  → Le popup de pairing devrait s'afficher sur la TV")
+                        DebugLogger.i(TAG, "  → Avec le nom unique de l'appareil, la TV devrait demander autorisation")
 
                         // Wait 10 seconds for TV to show popup before asking for PIN
                         DebugLogger.i(TAG, "  → Attente de ${AUTH_TIMEOUT/1000}s pour le popup TV...")
@@ -362,29 +360,6 @@ class SamsungWebSocketClient(
                 // Petit délai pour éviter de surcharger la TV
                 Thread.sleep(50)
             }
-        }
-    }
-
-    /**
-     * Envoie une demande de pairing explicite à la TV
-     * Cela peut déclencher l'affichage du popup de pairing sur certaines TV
-     */
-    private fun sendPairingRequest() {
-        try {
-            val message = mapOf(
-                "method" to "ms.channel.emit",
-                "params" to mapOf(
-                    "event" to "ms.channel.connect",
-                    "to" to "host"
-                )
-            )
-
-            val json = gson.toJson(message)
-            DebugLogger.d(TAG, "→ Envoi demande de pairing explicite")
-            DebugLogger.d(TAG, "  Message: $json")
-            webSocket?.send(json)
-        } catch (e: Exception) {
-            DebugLogger.e(TAG, "❌ Erreur lors de l'envoi de la demande de pairing: ${e.message}")
         }
     }
 
