@@ -551,8 +551,30 @@ class MainActivity : AppCompatActivity() {
                 binding.searchButton.text = getString(R.string.search_tv)
 
                 if (discoveredTVs.isEmpty()) {
-                    DebugLogger.w("MainActivity", "Aucune TV trouvée après la recherche")
+                    DebugLogger.w("MainActivity", "Aucune TV trouvée après la recherche NSD")
                     binding.statusText.text = getString(R.string.no_tv_found)
+
+                    // Suggérer le scan réseau si NSD ne trouve rien
+                    runOnUiThread {
+                        androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+                            .setTitle("📡 Aucune TV détectée")
+                            .setMessage("""
+                                La recherche automatique (NSD) n'a trouvé aucune TV Samsung.
+
+                                💡 Solution recommandée :
+                                Utilisez le bouton "🔍 Scan Réseau" qui est plus fiable pour les TV Samsung 2014-2016.
+
+                                Le scan réseau teste directement les ports 8001/8002 de chaque appareil et fonctionne même si votre TV ne diffuse pas de service mDNS.
+                            """.trimIndent())
+                            .setPositiveButton("Scan Réseau") { _, _ ->
+                                startNetworkScan()
+                            }
+                            .setNegativeButton("IP Manuelle") { _, _ ->
+                                showManualIpDialog()
+                            }
+                            .setNeutralButton("Fermer", null)
+                            .show()
+                    }
                 } else {
                     DebugLogger.i("MainActivity", "Découverte terminée: ${discoveredTVs.size} TV(s) trouvée(s)")
                 }

@@ -3,7 +3,7 @@
     <string name="app_name">Samsung Remote</string>
 
     <!-- Main Activity -->
-    <string name="search_tv">Rechercher une TV</string>
+    <string name="search_tv">Recherche Auto (NSD)</string>
     <string name="searching">Recherche en cours…</string>
     <string name="no_tv_found">Aucune TV Samsung trouvée</string>
     <string name="tv_found">TV trouvée: %1$s</string>
