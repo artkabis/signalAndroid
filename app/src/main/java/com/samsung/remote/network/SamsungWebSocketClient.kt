@@ -252,18 +252,21 @@ class SamsungWebSocketClient(
     }
 
     fun sendKey(key: RemoteKey) {
+        // Série J (2015) et antérieures utilisent un format simplifié
+        // Modern (2016+) utilise le format complet avec method/params
         val message = mapOf(
             "method" to "ms.remote.control",
             "params" to mapOf(
                 "Cmd" to "Click",
                 "DataOfCmd" to key.keyCode,
-                "Option" to "false",
+                "Option" to false,  // Boolean, pas string pour série J
                 "TypeOfRemote" to "SendRemoteKey"
             )
         )
 
         val json = gson.toJson(message)
         DebugLogger.d(TAG, "→ Envoi touche: ${key.keyCode}")
+        DebugLogger.d(TAG, "  Message JSON: $json")
         webSocket?.send(json)
     }
 

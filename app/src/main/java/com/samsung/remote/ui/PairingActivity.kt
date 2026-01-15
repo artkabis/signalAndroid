@@ -181,32 +181,35 @@ class PairingActivity : AppCompatActivity() {
     private fun showTVSettingsInstructions() {
         DebugLogger.i("PairingActivity", "Affichage des instructions de configuration TV")
         androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("⚙️ Configuration TV Samsung requise")
+            .setTitle("⚠️ TV Série J (2015) - Action requise")
             .setMessage("""
-                Si aucun popup n'apparaît sur votre TV, le contrôle réseau est probablement désactivé.
+                🔴 PROBLÈME DÉTECTÉ :
+                Votre TV a mémorisé plusieurs appareils "AndroidRemote-*" (6+) et refuse d'afficher le popup de pairing.
+
+                ✅ SOLUTION OBLIGATOIRE pour UE32J6300AW (Série J 2015) :
 
                 📺 Sur votre téléviseur Samsung :
 
-                Option 1 - Menu Système :
-                • Menu → Système/Général
-                • Gestionnaire de périphériques externes
-                • Gestionnaire de connexion des périphériques
-                • Activez "Autoriser les appareils"
+                Méthode 1 - Réinitialiser Smart Hub (RECOMMANDÉ) :
+                • Menu → Système → Réinitialiser Smart Hub
+                • PIN : 0000
+                • Supprime TOUS les appareils mémorisés
 
-                Option 2 - Menu Réseau :
-                • Menu → Réseau → Expert
-                • Activez "Contrôle des périphériques"
-                • Activez "Smart View" si disponible
+                Méthode 2 - Supprimer manuellement :
+                • Menu → Réseau → Paramètres réseau
+                • Smart View ou AllShare Settings
+                • Liste des appareils
+                • Supprimez TOUS les "AndroidRemote-*"
 
-                Option 3 - Accessibilité :
-                • Menu → Accessibilité
-                • Activez "Contrôle à distance"
+                Méthode 3 - Redémarrage complet :
+                • Débranchez la TV 30 secondes
+                • Rebranchez et rallumez
 
-                Après activation, reconnectez-vous avec cette application.
+                ⚡ Après nettoyage : cliquez sur "🔄 Forcer nouveau pairing" pour générer un nouveau nom !
             """.trimIndent())
-            .setPositiveButton("J'ai configuré") { _, _ ->
+            .setPositiveButton("J'ai nettoyé") { _, _ ->
                 // Retry connection
-                initiateConnection()
+                Toast.makeText(this, "Cliquez sur '🔄 Forcer nouveau pairing' en bas", Toast.LENGTH_LONG).show()
             }
             .setNegativeButton("Plus tard", null)
             .setNeutralButton("Voir les logs") { _, _ ->
