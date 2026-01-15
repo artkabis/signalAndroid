@@ -130,7 +130,9 @@ class RemoteControlActivity : AppCompatActivity() {
 
     private fun setupWebSocket() {
         DebugLogger.d("RemoteControlActivity", "Configuration du WebSocket client")
-        webSocketClient = SamsungWebSocketClient(tv, "AndroidRemote", prefsManager)
+        val deviceName = prefsManager.getDeviceName()
+        DebugLogger.i("RemoteControlActivity", "Nom de l'appareil: $deviceName")
+        webSocketClient = SamsungWebSocketClient(tv, deviceName, prefsManager)
         webSocketClient.setConnectionListener(object : SamsungWebSocketClient.ConnectionListener {
             override fun onConnected() {
                 runOnUiThread {

@@ -51,18 +51,22 @@ class SamsungWebSocketClient(
     fun connect(token: String? = null) {
         val nameEncoded = Base64.encodeToString(deviceName.toByteArray(), Base64.NO_WRAP)
 
+        DebugLogger.i(TAG, "═══ Connexion WebSocket ═══")
+        DebugLogger.i(TAG, "  Appareil: $deviceName")
+        DebugLogger.i(TAG, "  TV: ${tv.name} (${tv.ip}:${tv.port})")
+
         // Use provided token, or try to load saved token
         val authToken = token ?: prefsManager?.getAuthToken()
 
         val url = if (authToken != null) {
-            DebugLogger.d(TAG, "✓ Utilisation du token d'authentification sauvegardé")
+            DebugLogger.d(TAG, "  ✓ Utilisation du token d'authentification sauvegardé")
             "${tv.getWebSocketUrl()}?name=$nameEncoded&token=$authToken"
         } else {
-            DebugLogger.d(TAG, "Pas de token disponible, nouveau pairing requis")
+            DebugLogger.d(TAG, "  Pas de token disponible, nouveau pairing requis")
             "${tv.getWebSocketUrl()}?name=$nameEncoded"
         }
 
-        DebugLogger.i(TAG, "Connexion à: ${tv.name} (${tv.ip}:${tv.port})")
+        DebugLogger.i(TAG, "═══════════════════════════")
 
         val request = Request.Builder()
             .url(url)

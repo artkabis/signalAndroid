@@ -259,7 +259,9 @@ class MainActivity : AppCompatActivity() {
 
         Toast.makeText(this, "Envoi commande MUTE vers ${tv.name}...", Toast.LENGTH_SHORT).show()
 
-        val testClient = SamsungWebSocketClient(tv, "AndroidRemote-Test", prefsManager)
+        val deviceName = "${prefsManager.getDeviceName()}-Test"
+        DebugLogger.i("MainActivity", "Nom de l'appareil pour le test: $deviceName")
+        val testClient = SamsungWebSocketClient(tv, deviceName, prefsManager)
         testClient.setConnectionListener(object : SamsungWebSocketClient.ConnectionListener {
             override fun onConnected() {
                 DebugLogger.i("MainActivity", "✓ Connecté pour test MUTE")

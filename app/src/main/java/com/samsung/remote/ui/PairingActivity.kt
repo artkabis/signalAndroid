@@ -58,7 +58,9 @@ class PairingActivity : AppCompatActivity() {
 
     private fun setupWebSocket() {
         DebugLogger.d("PairingActivity", "Configuration du WebSocket client pour le pairing")
-        webSocketClient = SamsungWebSocketClient(tv, "AndroidRemote", prefsManager)
+        val deviceName = prefsManager.getDeviceName()
+        DebugLogger.i("PairingActivity", "Nom de l'appareil pour le pairing: $deviceName")
+        webSocketClient = SamsungWebSocketClient(tv, deviceName, prefsManager)
         webSocketClient.setConnectionListener(object : SamsungWebSocketClient.ConnectionListener {
             override fun onConnected() {
                 runOnUiThread {
