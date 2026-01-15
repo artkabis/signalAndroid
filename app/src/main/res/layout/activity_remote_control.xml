@@ -10,20 +10,21 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="20dp"
-        android:background="#F5F7FA">
+        android:padding="24dp"
+        android:background="@color/background_light">
 
         <TextView
             android:id="@+id/tvNameTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="22sp"
+            android:textSize="26sp"
             android:textStyle="bold"
-            android:textColor="@color/samsung_blue_dark"
+            android:textColor="@color/text_primary"
+            android:letterSpacing="0.01"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="8dp"
             tools:text="Samsung TV" />
 
         <!-- Connection Status Indicator -->
@@ -31,14 +32,15 @@
             android:id="@+id/connectionStatusTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="16sp"
+            android:textSize="18sp"
             android:textStyle="bold"
             android:text="@string/connection_status_connecting"
-            android:textColor="#FFA500"
+            android:textColor="@color/accent_orange"
+            android:letterSpacing="0.02"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvNameTextView"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="6dp"
             tools:text="● Connecté" />
 
         <!-- Voice Input Button (Microphone FAB) -->
@@ -59,18 +61,14 @@
         <!-- Power Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/powerButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Power"
             android:text="@string/power"
-            android:textSize="20sp"
-            android:layout_height="68dp"
-            android:backgroundTint="#E53935"
-            app:backgroundTint="#E53935"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/connectionStatusTextView"
-            android:layout_marginTop="24dp"
-            android:layout_marginStart="64dp"
-            android:layout_marginEnd="64dp" />
+            android:layout_marginTop="28dp"
+            android:layout_marginStart="60dp"
+            android:layout_marginEnd="60dp" />
 
         <!-- Source and Menu -->
         <com.google.android.material.button.MaterialButton
@@ -171,65 +169,65 @@
         <!-- Volume Controls -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/volumeUpButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Volume"
             android:text="@string/volume_up"
             app:layout_constraintEnd_toStartOf="@id/muteButton"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/backButton"
-            android:layout_marginTop="32dp"
-            android:layout_marginEnd="6dp" />
+            android:layout_marginTop="36dp"
+            android:layout_marginEnd="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/muteButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Volume"
             android:text="@string/mute"
             app:layout_constraintEnd_toStartOf="@id/channelUpButton"
             app:layout_constraintStart_toEndOf="@id/volumeUpButton"
             app:layout_constraintTop_toBottomOf="@id/backButton"
-            android:layout_marginTop="32dp"
-            android:layout_marginStart="6dp"
-            android:layout_marginEnd="6dp" />
+            android:layout_marginTop="36dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/channelUpButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Volume"
             android:text="@string/channel_up"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/muteButton"
             app:layout_constraintTop_toBottomOf="@id/backButton"
-            android:layout_marginTop="32dp"
-            android:layout_marginStart="6dp" />
+            android:layout_marginTop="36dp"
+            android:layout_marginStart="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/volumeDownButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Volume"
             android:text="@string/volume_down"
             app:layout_constraintEnd_toStartOf="@id/infoButton"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/volumeUpButton"
-            android:layout_marginTop="8dp"
-            android:layout_marginEnd="4dp" />
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/infoButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Volume"
             android:text="@string/info"
             app:layout_constraintEnd_toStartOf="@id/channelDownButton"
             app:layout_constraintStart_toEndOf="@id/volumeDownButton"
             app:layout_constraintTop_toBottomOf="@id/muteButton"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="4dp" />
+            android:layout_marginTop="10dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/channelDownButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Volume"
             android:text="@string/channel_down"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/infoButton"
             app:layout_constraintTop_toBottomOf="@id/channelUpButton"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="4dp" />
+            android:layout_marginTop="10dp"
+            android:layout_marginStart="8dp" />
 
         <!-- Media Controls -->
         <TextView
@@ -238,62 +236,63 @@
             android:layout_height="wrap_content"
             android:text="Contrôles Média"
             android:textStyle="bold"
-            android:textSize="16sp"
-            android:textColor="@color/samsung_blue_dark"
+            android:textSize="20sp"
+            android:textColor="@color/text_primary"
+            android:letterSpacing="0.02"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/volumeDownButton"
-            android:layout_marginTop="32dp" />
+            android:layout_marginTop="36dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/playButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Media"
             android:text="@string/play"
             app:layout_constraintEnd_toStartOf="@id/pauseButton"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/mediaLabel"
-            android:layout_marginTop="8dp"
-            android:layout_marginEnd="4dp" />
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/pauseButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Media"
             android:text="@string/pause"
             app:layout_constraintEnd_toStartOf="@id/stopButton"
             app:layout_constraintStart_toEndOf="@id/playButton"
             app:layout_constraintTop_toBottomOf="@id/mediaLabel"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="4dp" />
+            android:layout_marginTop="12dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/stopButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Media"
             android:text="@string/stop"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/pauseButton"
             app:layout_constraintTop_toBottomOf="@id/mediaLabel"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="4dp" />
+            android:layout_marginTop="12dp"
+            android:layout_marginStart="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/rewindButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Media"
             android:text="@string/rewind"
             app:layout_constraintEnd_toStartOf="@id/forwardButton"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/playButton"
-            android:layout_marginTop="8dp"
-            android:layout_marginEnd="8dp" />
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="12dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/forwardButton"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Media"
             android:text="@string/forward"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/rewindButton"
             app:layout_constraintTop_toBottomOf="@id/pauseButton"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="8dp" />
+            android:layout_marginTop="10dp"
+            android:layout_marginStart="12dp" />
 
         <!-- Number Pad -->
         <TextView
@@ -302,116 +301,117 @@
             android:layout_height="wrap_content"
             android:text="Pavé Numérique"
             android:textStyle="bold"
-            android:textSize="16sp"
-            android:textColor="@color/samsung_blue_dark"
+            android:textSize="20sp"
+            android:textColor="@color/text_primary"
+            android:letterSpacing="0.02"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/rewindButton"
-            android:layout_marginTop="32dp" />
+            android:layout_marginTop="36dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/num1Button"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Number"
             android:text="@string/num_1"
             app:layout_constraintEnd_toStartOf="@id/num2Button"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/numberLabel"
-            android:layout_marginTop="8dp"
-            android:layout_marginEnd="4dp" />
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/num2Button"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Number"
             android:text="@string/num_2"
             app:layout_constraintEnd_toStartOf="@id/num3Button"
             app:layout_constraintStart_toEndOf="@id/num1Button"
             app:layout_constraintTop_toBottomOf="@id/numberLabel"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="4dp" />
+            android:layout_marginTop="12dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/num3Button"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Number"
             android:text="@string/num_3"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/num2Button"
             app:layout_constraintTop_toBottomOf="@id/numberLabel"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="4dp" />
+            android:layout_marginTop="12dp"
+            android:layout_marginStart="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/num4Button"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Number"
             android:text="@string/num_4"
             app:layout_constraintEnd_toStartOf="@id/num5Button"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/num1Button"
-            android:layout_marginTop="8dp"
-            android:layout_marginEnd="4dp" />
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/num5Button"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Number"
             android:text="@string/num_5"
             app:layout_constraintEnd_toStartOf="@id/num6Button"
             app:layout_constraintStart_toEndOf="@id/num4Button"
             app:layout_constraintTop_toBottomOf="@id/num2Button"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="4dp" />
+            android:layout_marginTop="10dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/num6Button"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Number"
             android:text="@string/num_6"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/num5Button"
             app:layout_constraintTop_toBottomOf="@id/num3Button"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="4dp" />
+            android:layout_marginTop="10dp"
+            android:layout_marginStart="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/num7Button"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Number"
             android:text="@string/num_7"
             app:layout_constraintEnd_toStartOf="@id/num8Button"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/num4Button"
-            android:layout_marginTop="8dp"
-            android:layout_marginEnd="4dp" />
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/num8Button"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Number"
             android:text="@string/num_8"
             app:layout_constraintEnd_toStartOf="@id/num9Button"
             app:layout_constraintStart_toEndOf="@id/num7Button"
             app:layout_constraintTop_toBottomOf="@id/num5Button"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="4dp" />
+            android:layout_marginTop="10dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/num9Button"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Number"
             android:text="@string/num_9"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/num8Button"
             app:layout_constraintTop_toBottomOf="@id/num6Button"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="4dp" />
+            android:layout_marginTop="10dp"
+            android:layout_marginStart="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/num0Button"
-            style="@style/RemoteButton"
+            style="@style/RemoteButton.Number"
             android:text="@string/num_0"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/num8Button"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="10dp"
             android:layout_marginStart="64dp"
             android:layout_marginEnd="64dp"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="20dp"
             app:layout_constraintBottom_toBottomOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>

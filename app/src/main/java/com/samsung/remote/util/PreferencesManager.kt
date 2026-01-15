@@ -15,6 +15,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_TV_IP = "tv_ip"
         private const val KEY_TV_PORT = "tv_port"
         private const val KEY_AUTH_TOKEN = "auth_token"
+        private const val KEY_DEVICE_UUID = "device_uuid"
     }
 
     fun saveTV(name: String, ip: String, port: Int) {
@@ -44,6 +45,47 @@ class PreferencesManager(context: Context) {
 
     fun getAuthToken(): String? {
         return prefs.getString(KEY_AUTH_TOKEN, null)
+    }
+
+    /**
+     * Obtient ou génère un UUID unique pour cet appareil
+     * Format: 4 caractères hexadécimaux (par ex: "a3f2")
+     */
+    fun getOrCreateDeviceUUID(): String {
+        var uuid = prefs.getString(KEY_DEVICE_UUID, null)
+
+        if (uuid == null) {
+            // Générer un UUID court (8 caractères hex = 4 bytes)
+            uuid = java.util.UUID.randomUUID().toString().substring(0, 8)
+            prefs.edit().putString(KEY_DEVICE_UUID, uuid).apply()
+            DebugLogger.i("PreferencesManager", "✓ UUID d'appareil généré: $uuid")
+        }
+
+        return uuid
+    }
+
+    /**
+     * Génère le nom complet de l'appareil pour le pairing TV
+     * Format: "AndroidRemote-{uuid}" (par ex: "AndroidRemote-a3f2b1c4")
+     */
+    fun getDeviceName(): String {
+        val uuid = getOrCreateDeviceUUID()
+        return "AndroidRemote-$uuid"
+    }
+
+    /**
+     * Force la génération d'un nouveau UUID et supprime le token
+     * Utile quand la TV a mémorisé l'ancien nom et ne demande plus d'autorisation
+     */
+    fun resetDeviceIdentity() {
+        val newUuid = java.util.UUID.randomUUID().toString().substring(0, 8)
+        prefs.edit().apply {
+            putString(KEY_DEVICE_UUID, newUuid)
+            remove(KEY_AUTH_TOKEN) // Supprimer aussi le token
+            apply()
+        }
+        DebugLogger.i("PreferencesManager", "✓ Nouvelle identité générée: AndroidRemote-$newUuid")
+        DebugLogger.i("PreferencesManager", "  → Token supprimé, nouveau pairing requis")
     }
 
     fun clearAll() {

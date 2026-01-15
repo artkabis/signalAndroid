@@ -3,6 +3,7 @@ package com.samsung.remote.network
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.net.wifi.WifiManager
 import android.util.Log
 import com.samsung.remote.model.SamsungTV
 import com.samsung.remote.util.DebugLogger
@@ -16,6 +17,10 @@ class TVDiscoveryService(private val context: Context) {
         context.getSystemService(Context.NSD_SERVICE) as NsdManager
     }
 
+    private val wifiManager: WifiManager by lazy {
+        context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+    }
+
     companion object {
         private const val TAG = "TVDiscoveryService"
         private const val SERVICE_TYPE = "_samsung-remote._tcp."
@@ -24,6 +29,20 @@ class TVDiscoveryService(private val context: Context) {
     fun discoverTVs(): Flow<SamsungTV> = callbackFlow {
         DebugLogger.i(TAG, "=== Démarrage de la découverte NSD ===")
         DebugLogger.d(TAG, "Type de service recherché: $SERVICE_TYPE")
+
+        // Acquire multicast lock for NSD to work properly
+        var multicastLock: WifiManager.MulticastLock? = null
+        try {
+            multicastLock = wifiManager.createMulticastLock("SamsungRemoteNSD").apply {
+                setReferenceCounted(true)
+                acquire()
+            }
+            DebugLogger.i(TAG, "✓ Multicast lock acquis pour NSD")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to acquire multicast lock", e)
+            DebugLogger.w(TAG, "Impossible d'acquérir le multicast lock: ${e.message}")
+        }
+
         val discoveredTVs = mutableSetOf<String>()
 
         val discoveryListener = object : NsdManager.DiscoveryListener {
@@ -144,6 +163,19 @@ class TVDiscoveryService(private val context: Context) {
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to stop discovery", e)
                 DebugLogger.e(TAG, "Erreur lors de l'arrêt de la découverte", e)
+            }
+
+            // Release multicast lock
+            multicastLock?.let { lock ->
+                try {
+                    if (lock.isHeld) {
+                        lock.release()
+                        DebugLogger.d(TAG, "✓ Multicast lock libéré")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to release multicast lock", e)
+                    DebugLogger.w(TAG, "Erreur lors de la libération du multicast lock: ${e.message}")
+                }
             }
         }
     }

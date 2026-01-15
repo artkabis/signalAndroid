@@ -26,10 +26,12 @@ class SamsungWebSocketClient(
     private val gson = Gson()
     private val keepAliveHandler = Handler(Looper.getMainLooper())
     private var keepAliveRunnable: Runnable? = null
+    private var authTimeoutRunnable: Runnable? = null
 
     companion object {
         private const val TAG = "SamsungWebSocket"
         private const val KEEP_ALIVE_INTERVAL = 30000L // 30 seconds
+        private const val AUTH_TIMEOUT = 10000L // 10 seconds - wait for TV popup
     }
 
     interface ConnectionListener {
@@ -49,18 +51,22 @@ class SamsungWebSocketClient(
     fun connect(token: String? = null) {
         val nameEncoded = Base64.encodeToString(deviceName.toByteArray(), Base64.NO_WRAP)
 
+        DebugLogger.i(TAG, "═══ Connexion WebSocket ═══")
+        DebugLogger.i(TAG, "  Appareil: $deviceName")
+        DebugLogger.i(TAG, "  TV: ${tv.name} (${tv.ip}:${tv.port})")
+
         // Use provided token, or try to load saved token
         val authToken = token ?: prefsManager?.getAuthToken()
 
         val url = if (authToken != null) {
-            DebugLogger.d(TAG, "✓ Utilisation du token d'authentification sauvegardé")
+            DebugLogger.d(TAG, "  ✓ Utilisation du token d'authentification sauvegardé")
             "${tv.getWebSocketUrl()}?name=$nameEncoded&token=$authToken"
         } else {
-            DebugLogger.d(TAG, "Pas de token disponible, nouveau pairing requis")
+            DebugLogger.d(TAG, "  Pas de token disponible, nouveau pairing requis")
             "${tv.getWebSocketUrl()}?name=$nameEncoded"
         }
 
-        DebugLogger.i(TAG, "Connexion à: ${tv.name} (${tv.ip}:${tv.port})")
+        DebugLogger.i(TAG, "═══════════════════════════")
 
         val request = Request.Builder()
             .url(url)
@@ -74,24 +80,29 @@ class SamsungWebSocketClient(
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                DebugLogger.d(TAG, "← Message reçu: ${text.take(100)}${if (text.length > 100) "..." else ""}")
+                // Log le message complet pour le debug (sans troncature)
+                DebugLogger.d(TAG, "← Message WebSocket reçu:")
+                DebugLogger.d(TAG, text)
                 handleMessage(text)
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
                 DebugLogger.w(TAG, "⚠ WebSocket en cours de fermeture: $code / $reason")
                 stopKeepAlive()
+                cancelAuthTimeout()
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 DebugLogger.w(TAG, "WebSocket fermé: $code / $reason")
                 stopKeepAlive()
+                cancelAuthTimeout()
                 listener?.onDisconnected()
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 DebugLogger.e(TAG, "❌ Erreur WebSocket: ${t.message}", t)
                 stopKeepAlive()
+                cancelAuthTimeout()
                 listener?.onError(t.message ?: "Unknown error")
             }
         })
@@ -135,53 +146,127 @@ class SamsungWebSocketClient(
             val response = gson.fromJson(text, Map::class.java)
             val event = response["event"] as? String
 
+            DebugLogger.i(TAG, "📩 Event: $event")
+
             when (event) {
                 "ms.channel.connect" -> {
                     val data = response["data"] as? Map<*, *>
-                    val token = data?.get("token") as? String
 
-                    if (token != null) {
+                    // Logger toutes les données reçues pour debug
+                    DebugLogger.d(TAG, "═══ Données ms.channel.connect ═══")
+                    data?.forEach { (key, value) ->
+                        DebugLogger.d(TAG, "  $key: $value")
+                    }
+                    DebugLogger.d(TAG, "═════════════════════════════════")
+
+                    // Vérifier plusieurs emplacements possibles pour le token
+                    var token: String? = data?.get("token") as? String
+
+                    // Pour certaines TV, le token peut être dans clients[0].attributes.token
+                    if (token == null) {
+                        val clients = data?.get("clients") as? List<*>
+                        if (clients != null && clients.isNotEmpty()) {
+                            val firstClient = clients[0] as? Map<*, *>
+                            val attributes = firstClient?.get("attributes") as? Map<*, *>
+                            token = attributes?.get("token") as? String
+                            if (token != null) {
+                                DebugLogger.d(TAG, "Token trouvé dans clients[0].attributes.token")
+                            }
+                        }
+                    }
+
+                    // Pour certaines TV, le token peut être dans data.id (utilisé comme token)
+                    if (token == null) {
+                        val id = data?.get("id") as? String
+                        if (id != null) {
+                            DebugLogger.d(TAG, "Pas de token explicite - utilisation de l'ID comme token potentiel")
+                            DebugLogger.d(TAG, "ID de session: $id")
+                        }
+                    }
+
+                    if (token != null && token.isNotEmpty()) {
                         // Save token for future connections
+                        cancelAuthTimeout()
                         prefsManager?.saveAuthToken(token)
                         DebugLogger.i(TAG, "✓ Token d'authentification reçu et sauvegardé")
+                        DebugLogger.i(TAG, "  Token: ${token.take(20)}...${token.takeLast(10)} (${token.length} chars)")
                         listener?.onAuthSuccess()
                     } else {
-                        DebugLogger.w(TAG, "⚠ Aucun token reçu, authentification requise")
-                        listener?.onAuthRequired()
+                        DebugLogger.w(TAG, "⚠ Aucun token dans ms.channel.connect")
+                        DebugLogger.i(TAG, "  → Le popup de pairing devrait s'afficher sur la TV")
+                        DebugLogger.i(TAG, "  → Avec le nom unique de l'appareil, la TV devrait demander autorisation")
+
+                        // Wait 10 seconds for TV to show popup before asking for PIN
+                        DebugLogger.i(TAG, "  → Attente de ${AUTH_TIMEOUT/1000}s pour le popup TV...")
+                        scheduleAuthTimeout()
                     }
                 }
+
+                "ms.channel.ready" -> {
+                    // Certaines TV envoient ce message après acceptation
+                    DebugLogger.i(TAG, "✓ Canal prêt (ms.channel.ready)")
+                    cancelAuthTimeout()
+                    val data = response["data"] as? Map<*, *>
+                    val token = data?.get("token") as? String
+
+                    if (token != null && token.isNotEmpty()) {
+                        prefsManager?.saveAuthToken(token)
+                        DebugLogger.i(TAG, "✓ Token reçu dans ms.channel.ready et sauvegardé")
+                        listener?.onAuthSuccess()
+                    } else {
+                        DebugLogger.d(TAG, "ms.channel.ready sans token - connexion établie")
+                        // Consider connection established even without explicit token
+                        listener?.onAuthSuccess()
+                    }
+                }
+
+                "ms.channel.clientConnect" -> {
+                    // Message quand un client se connecte
+                    DebugLogger.i(TAG, "✓ Client connecté (ms.channel.clientConnect)")
+                }
+
                 "ms.channel.unauthorized" -> {
                     DebugLogger.w(TAG, "⚠ Non autorisé - nouvelle authentification requise")
                     listener?.onAuthRequired()
                 }
+
                 "ms.error" -> {
                     val data = response["data"] as? Map<*, *>
                     val message = data?.get("message") as? String
                     DebugLogger.e(TAG, "❌ Erreur de la TV: ${message ?: "Inconnue"}")
                     listener?.onError(message ?: "Unknown error from TV")
                 }
+
                 else -> {
                     DebugLogger.d(TAG, "Event non géré: $event")
+                    // Logger les données pour debug
+                    if (response["data"] != null) {
+                        DebugLogger.d(TAG, "  Données: ${response["data"]}")
+                    }
                 }
             }
         } catch (e: Exception) {
             DebugLogger.e(TAG, "❌ Échec du parsing du message", e)
+            DebugLogger.e(TAG, "  Message: $text")
         }
     }
 
     fun sendKey(key: RemoteKey) {
+        // Série J (2015) et antérieures utilisent un format simplifié
+        // Modern (2016+) utilise le format complet avec method/params
         val message = mapOf(
             "method" to "ms.remote.control",
             "params" to mapOf(
                 "Cmd" to "Click",
                 "DataOfCmd" to key.keyCode,
-                "Option" to "false",
+                "Option" to false,  // Boolean, pas string pour série J
                 "TypeOfRemote" to "SendRemoteKey"
             )
         )
 
         val json = gson.toJson(message)
         DebugLogger.d(TAG, "→ Envoi touche: ${key.keyCode}")
+        DebugLogger.d(TAG, "  Message JSON: $json")
         webSocket?.send(json)
     }
 
@@ -281,8 +366,41 @@ class SamsungWebSocketClient(
         }
     }
 
+    /**
+     * Programme un timeout pour demander le PIN si la TV n'envoie pas de token
+     */
+    private fun scheduleAuthTimeout() {
+        cancelAuthTimeout() // Cancel any existing timeout
+
+        authTimeoutRunnable = Runnable {
+            DebugLogger.w(TAG, "⏱ Timeout d'authentification atteint")
+            DebugLogger.w(TAG, "  → Aucun popup détecté sur la TV après ${AUTH_TIMEOUT/1000}s")
+            DebugLogger.w(TAG, "  → Vérifiez que le contrôle réseau est activé dans les paramètres TV")
+            DebugLogger.w(TAG, "  → Pour les TV Transition/Legacy:")
+            DebugLogger.w(TAG, "     1. Acceptez la demande de connexion sur l'écran TV")
+            DebugLogger.w(TAG, "     2. Le token sera envoyé après validation")
+            DebugLogger.w(TAG, "     3. Ou entrez le PIN affiché sur la TV")
+            listener?.onAuthRequired()
+        }
+
+        keepAliveHandler.postDelayed(authTimeoutRunnable!!, AUTH_TIMEOUT)
+        DebugLogger.d(TAG, "⏱ Timeout d'authentification programmé: ${AUTH_TIMEOUT/1000}s")
+    }
+
+    /**
+     * Annule le timeout d'authentification si la TV répond
+     */
+    private fun cancelAuthTimeout() {
+        authTimeoutRunnable?.let {
+            keepAliveHandler.removeCallbacks(it)
+            authTimeoutRunnable = null
+            DebugLogger.d(TAG, "⏱ Timeout d'authentification annulé")
+        }
+    }
+
     fun disconnect() {
         stopKeepAlive()
+        cancelAuthTimeout()
         webSocket?.close(1000, "User disconnected")
         webSocket = null
     }

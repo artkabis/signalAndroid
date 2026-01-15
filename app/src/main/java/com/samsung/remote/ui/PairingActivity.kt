@@ -58,13 +58,20 @@ class PairingActivity : AppCompatActivity() {
 
     private fun setupWebSocket() {
         DebugLogger.d("PairingActivity", "Configuration du WebSocket client pour le pairing")
-        webSocketClient = SamsungWebSocketClient(tv, "AndroidRemote", prefsManager)
+        val deviceName = prefsManager.getDeviceName()
+        DebugLogger.i("PairingActivity", "Nom de l'appareil pour le pairing: $deviceName")
+        webSocketClient = SamsungWebSocketClient(tv, deviceName, prefsManager)
         webSocketClient.setConnectionListener(object : SamsungWebSocketClient.ConnectionListener {
             override fun onConnected() {
                 runOnUiThread {
                     DebugLogger.i("PairingActivity", "✓ Connecté à la TV")
                     binding.pairingProgressBar.visibility = View.GONE
-                    binding.pairingStatusText.text = "Connecté! Vérification..."
+                    binding.pairingStatusText.text = "Connecté! En attente du popup sur la TV..."
+
+                    // Show instructions for enabling network control if first connection
+                    if (prefsManager.getAuthToken() == null) {
+                        showTVSettingsInstructions()
+                    }
                 }
             }
 
@@ -81,7 +88,13 @@ class PairingActivity : AppCompatActivity() {
                     DebugLogger.e("PairingActivity", "❌ Erreur d'appairage: $error")
                     binding.pairingProgressBar.visibility = View.GONE
                     binding.pairingStatusText.text = "Erreur: $error"
-                    Toast.makeText(this@PairingActivity, error, Toast.LENGTH_SHORT).show()
+
+                    // Check if it's a connection error
+                    if (error.contains("Connection refused") || error.contains("connection abort")) {
+                        showTVSettingsInstructions()
+                    } else {
+                        Toast.makeText(this@PairingActivity, error, Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
 
@@ -92,6 +105,7 @@ class PairingActivity : AppCompatActivity() {
                     binding.pairingStatusText.text = getString(R.string.enter_pin)
                     binding.pinInputLayout.visibility = View.VISIBLE
                     binding.pairButton.isEnabled = true
+                    binding.resetIdentityButton.visibility = View.VISIBLE
                 }
             }
 
@@ -128,6 +142,28 @@ class PairingActivity : AppCompatActivity() {
                 Toast.makeText(this, "Veuillez entrer un code PIN à 4 chiffres", Toast.LENGTH_SHORT).show()
             }
         }
+
+        binding.resetIdentityButton.setOnClickListener {
+            DebugLogger.i("PairingActivity", "Utilisateur demande un nouveau pairing forcé")
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("🔄 Forcer nouveau pairing ?")
+                .setMessage("""
+                    Cette action va :
+                    • Générer un nouveau nom d'appareil
+                    • Supprimer le token sauvegardé
+                    • Forcer la TV à redemander l'autorisation
+
+                    ⚠️ Avant de continuer, allez sur votre TV et supprimez les anciens appareils "AndroidRemote-*" dans :
+                    Menu → Réseau → Smart View → Liste des appareils
+
+                    Continuer ?
+                """.trimIndent())
+                .setPositiveButton("Continuer") { _, _ ->
+                    forceNewPairing()
+                }
+                .setNegativeButton("Annuler", null)
+                .show()
+        }
     }
 
     private fun initiateConnection() {
@@ -140,6 +176,80 @@ class PairingActivity : AppCompatActivity() {
         DebugLogger.i("PairingActivity", "Connexion avec token sauvegardé")
         binding.pairingProgressBar.visibility = View.VISIBLE
         webSocketClient.connect(token)
+    }
+
+    private fun showTVSettingsInstructions() {
+        DebugLogger.i("PairingActivity", "Affichage des instructions de configuration TV")
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("⚠️ TV Série J (2015) - Action requise")
+            .setMessage("""
+                🔴 PROBLÈME DÉTECTÉ :
+                Votre TV a mémorisé plusieurs appareils "AndroidRemote-*" (6+) et refuse d'afficher le popup de pairing.
+
+                ✅ SOLUTION OBLIGATOIRE pour UE32J6300AW (Série J 2015) :
+
+                📺 Sur votre téléviseur Samsung :
+
+                Méthode 1 - Réinitialiser Smart Hub (RECOMMANDÉ) :
+                • Menu → Système → Réinitialiser Smart Hub
+                • PIN : 0000
+                • Supprime TOUS les appareils mémorisés
+
+                Méthode 2 - Supprimer manuellement :
+                • Menu → Réseau → Paramètres réseau
+                • Smart View ou AllShare Settings
+                • Liste des appareils
+                • Supprimez TOUS les "AndroidRemote-*"
+
+                Méthode 3 - Redémarrage complet :
+                • Débranchez la TV 30 secondes
+                • Rebranchez et rallumez
+
+                ⚡ Après nettoyage : cliquez sur "🔄 Forcer nouveau pairing" pour générer un nouveau nom !
+            """.trimIndent())
+            .setPositiveButton("J'ai nettoyé") { _, _ ->
+                // Retry connection
+                Toast.makeText(this, "Cliquez sur '🔄 Forcer nouveau pairing' en bas", Toast.LENGTH_LONG).show()
+            }
+            .setNegativeButton("Plus tard", null)
+            .setNeutralButton("Voir les logs") { _, _ ->
+                startActivity(Intent(this, DebugLogsActivity::class.java))
+            }
+            .show()
+    }
+
+    private fun forceNewPairing() {
+        DebugLogger.i("PairingActivity", "=== Forçage d'un nouveau pairing ===")
+
+        // Déconnecter le WebSocket actuel
+        webSocketClient.disconnect()
+
+        // Générer une nouvelle identité
+        prefsManager.resetDeviceIdentity()
+
+        // Recréer le WebSocket avec le nouveau nom
+        val newDeviceName = prefsManager.getDeviceName()
+        DebugLogger.i("PairingActivity", "Nouvelle identité: $newDeviceName")
+
+        // Mise à jour UI
+        binding.pairingProgressBar.visibility = View.VISIBLE
+        binding.pairingStatusText.text = "Reconnexion avec nouvelle identité..."
+        binding.pinInputLayout.visibility = View.GONE
+        binding.resetIdentityButton.visibility = View.GONE
+
+        Toast.makeText(
+            this,
+            "Nouveau nom: $newDeviceName\nReconnexion...",
+            Toast.LENGTH_LONG
+        ).show()
+
+        // Recréer le client WebSocket et se reconnecter
+        setupWebSocket()
+
+        // Attendre 1 seconde avant de se reconnecter
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            initiateConnection()
+        }, 1000)
     }
 
     private fun navigateToRemoteControl() {

@@ -18,4 +18,19 @@
     <!-- Voice Input Dialog Colors -->
     <color name="light_gray">#F0F0F0</color>
     <color name="dark_gray">#666666</color>
+
+    <!-- Modern UI Colors - High Contrast -->
+    <color name="primary_dark">#0A1929</color>
+    <color name="primary_blue">#1976D2</color>
+    <color name="primary_blue_light">#42A5F5</color>
+    <color name="accent_teal">#00BCD4</color>
+    <color name="accent_green">#4CAF50</color>
+    <color name="accent_red">#F44336</color>
+    <color name="accent_orange">#FF9800</color>
+    <color name="background_light">#FAFBFC</color>
+    <color name="background_card">#FFFFFF</color>
+    <color name="text_primary">#1A1A1A</color>
+    <color name="text_secondary">#757575</color>
+    <color name="navigation_bg">#263238</color>
+    <color name="power_red">#D32F2F</color>
 </resources>

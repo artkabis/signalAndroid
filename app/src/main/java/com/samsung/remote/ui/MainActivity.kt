@@ -21,6 +21,7 @@ import com.samsung.remote.adapter.TVListAdapter
 import com.samsung.remote.databinding.ActivityMainBinding
 import com.samsung.remote.model.RemoteKey
 import com.samsung.remote.model.SamsungTV
+import com.samsung.remote.network.NetworkScanner
 import com.samsung.remote.network.SamsungWebSocketClient
 import com.samsung.remote.network.TVDiscoveryService
 import com.samsung.remote.util.DebugLogger
@@ -33,6 +34,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var tvAdapter: TVListAdapter
     private lateinit var discoveryService: TVDiscoveryService
+    private lateinit var networkScanner: NetworkScanner
     private lateinit var prefsManager: PreferencesManager
 
     private val discoveredTVs = mutableListOf<SamsungTV>()
@@ -58,6 +60,7 @@ class MainActivity : AppCompatActivity() {
 
         prefsManager = PreferencesManager(this)
         discoveryService = TVDiscoveryService(this)
+        networkScanner = NetworkScanner(this)
 
         setupRecyclerView()
         setupButtons()
@@ -223,11 +226,9 @@ class MainActivity : AppCompatActivity() {
             testMuteCommand()
         }
 
-        // Bouton scan WiFi manuel
+        // Bouton scan réseau manuel
         binding.scanWifiButton.setOnClickListener {
-            checkLocationPermissions()
-            com.samsung.remote.util.NetworkInfoHelper.logNetworkInfo(this, "MainActivity")
-            Toast.makeText(this, "Scan WiFi effectué - Vérifiez les logs", Toast.LENGTH_SHORT).show()
+            startNetworkScan()
         }
 
         // Bouton entrée manuelle IP
@@ -258,7 +259,9 @@ class MainActivity : AppCompatActivity() {
 
         Toast.makeText(this, "Envoi commande MUTE vers ${tv.name}...", Toast.LENGTH_SHORT).show()
 
-        val testClient = SamsungWebSocketClient(tv, "AndroidRemote-Test", prefsManager)
+        val deviceName = "${prefsManager.getDeviceName()}-Test"
+        DebugLogger.i("MainActivity", "Nom de l'appareil pour le test: $deviceName")
+        val testClient = SamsungWebSocketClient(tv, deviceName, prefsManager)
         testClient.setConnectionListener(object : SamsungWebSocketClient.ConnectionListener {
             override fun onConnected() {
                 DebugLogger.i("MainActivity", "✓ Connecté pour test MUTE")
@@ -303,32 +306,87 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showManualIpDialog() {
-        val input = EditText(this)
-        input.hint = "192.168.1.100"
+        val dialogView = layoutInflater.inflate(android.R.layout.simple_list_item_1, null)
+
+        // Créer un layout vertical
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(50, 20, 50, 20)
+        }
+
+        // Champ IP
+        val ipInput = EditText(this).apply {
+            hint = "192.168.1.44"
+            setText("192.168.1.44") // Pré-remplir avec l'IP détectée
+        }
+        layout.addView(ipInput)
+
+        // Radio buttons pour le port
+        val portGroup = android.widget.RadioGroup(this).apply {
+            orientation = android.widget.RadioGroup.HORIZONTAL
+        }
+
+        val port8002 = android.widget.RadioButton(this).apply {
+            text = "Port 8002 (WSS)"
+            id = 8002
+            isChecked = true // Sélectionné par défaut
+        }
+
+        val port8001 = android.widget.RadioButton(this).apply {
+            text = "Port 8001 (WS)"
+            id = 8001
+        }
+
+        val port55000 = android.widget.RadioButton(this).apply {
+            text = "Port 55000 (Legacy)"
+            id = 55000
+        }
+
+        portGroup.addView(port8002)
+        portGroup.addView(port8001)
+        portGroup.addView(port55000)
+
+        val portLabel = android.widget.TextView(this).apply {
+            text = "Sélectionnez le port:"
+            textSize = 14f
+            setPadding(0, 30, 0, 10)
+        }
+
+        layout.addView(portLabel)
+        layout.addView(portGroup)
 
         AlertDialog.Builder(this)
-            .setTitle("Entrée manuelle de l'IP TV")
-            .setMessage("Entrez l'adresse IP de votre TV Samsung:")
-            .setView(input)
+            .setTitle("Connexion manuelle TV Samsung")
+            .setMessage("Entrez l'IP et choisissez le port:\n\n⚠️ Votre TV a été détectée sur port 8001,\nmais le port 8002 pourrait afficher\nle popup de pairing.")
+            .setView(layout)
             .setPositiveButton("Connecter") { _, _ ->
-                val ip = input.text.toString().trim()
-                if (ip.isNotEmpty()) {
-                    connectToManualIP(ip)
+                val ip = ipInput.text.toString().trim()
+                val port = portGroup.checkedRadioButtonId
+
+                if (ip.isNotEmpty() && port != -1) {
+                    connectToManualIP(ip, port)
                 } else {
-                    Toast.makeText(this, "IP invalide", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "IP ou port invalide", Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("Annuler", null)
             .show()
     }
 
-    private fun connectToManualIP(ip: String) {
-        DebugLogger.i("MainActivity", "Connexion manuelle à l'IP: $ip")
+    private fun connectToManualIP(ip: String, port: Int = 8002) {
+        val portName = when(port) {
+            8002 -> "WSS"
+            8001 -> "WS"
+            55000 -> "Legacy"
+            else -> port.toString()
+        }
 
-        val manualTV = SamsungTV("TV Manuel ($ip)", ip, 8002)
+        DebugLogger.i("MainActivity", "Connexion manuelle à l'IP: $ip:$port ($portName)")
+
+        val manualTV = SamsungTV("TV Manuel ($ip)", ip, port)
         prefsManager.saveTV(manualTV.name, manualTV.ip, manualTV.port)
 
-        Toast.makeText(this, "Connexion à $ip...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Test connexion $ip:$port ($portName)...", Toast.LENGTH_SHORT).show()
         navigateToPairing(manualTV)
     }
 
@@ -357,6 +415,81 @@ class MainActivity : AppCompatActivity() {
                 }
                 .setNeutralButton("Annuler", null)
                 .show()
+        }
+    }
+
+    private fun startNetworkScan() {
+        DebugLogger.i("MainActivity", "=== Démarrage du scan réseau manuel ===")
+
+        // Vérifier connexion réseau
+        val networkInfo = com.samsung.remote.util.NetworkInfoHelper.getNetworkInfo(this)
+        if (!networkInfo.isConnected) {
+            Toast.makeText(this, "Aucune connexion réseau détectée", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        if (!networkInfo.isWifi) {
+            Toast.makeText(this, "Connectez-vous au Wi-Fi pour scanner le réseau", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        // Demander confirmation à l'utilisateur
+        AlertDialog.Builder(this)
+            .setTitle("Scanner le réseau?")
+            .setMessage("Le scan réseau va rechercher toutes les TV Samsung sur votre réseau local.\n\nCela peut prendre 15-30 secondes.")
+            .setPositiveButton("Scanner") { _, _ ->
+                performNetworkScan()
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
+    }
+
+    private fun performNetworkScan() {
+        discoveredTVs.clear()
+        tvAdapter.submitList(emptyList())
+
+        binding.progressBar.visibility = View.VISIBLE
+        binding.statusText.text = "Scan réseau en cours..."
+        binding.searchButton.isEnabled = false
+        binding.scanWifiButton.isEnabled = false
+
+        discoveryJob = lifecycleScope.launch {
+            try {
+                val tvList = networkScanner.scanNetwork { scanned, total ->
+                    runOnUiThread {
+                        binding.statusText.text = "Scan: $scanned/$total adresses..."
+                    }
+                }
+
+                if (tvList.isNotEmpty()) {
+                    discoveredTVs.addAll(tvList)
+                    tvAdapter.submitList(discoveredTVs.toList())
+                    binding.statusText.text = "${tvList.size} TV(s) Samsung trouvée(s)"
+                    Toast.makeText(
+                        this@MainActivity,
+                        "✓ ${tvList.size} TV(s) trouvée(s)!",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    binding.statusText.text = "Aucune TV Samsung trouvée sur le réseau"
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Aucune TV trouvée. Utilisez 'IP Manuelle' si vous connaissez l'IP de votre TV.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } catch (e: Exception) {
+                DebugLogger.e("MainActivity", "Erreur scan réseau", e)
+                Toast.makeText(
+                    this@MainActivity,
+                    "Erreur lors du scan: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                binding.progressBar.visibility = View.GONE
+                binding.searchButton.isEnabled = true
+                binding.scanWifiButton.isEnabled = true
+            }
         }
     }
 
@@ -418,8 +551,30 @@ class MainActivity : AppCompatActivity() {
                 binding.searchButton.text = getString(R.string.search_tv)
 
                 if (discoveredTVs.isEmpty()) {
-                    DebugLogger.w("MainActivity", "Aucune TV trouvée après la recherche")
+                    DebugLogger.w("MainActivity", "Aucune TV trouvée après la recherche NSD")
                     binding.statusText.text = getString(R.string.no_tv_found)
+
+                    // Suggérer le scan réseau si NSD ne trouve rien
+                    runOnUiThread {
+                        androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+                            .setTitle("📡 Aucune TV détectée")
+                            .setMessage("""
+                                La recherche automatique (NSD) n'a trouvé aucune TV Samsung.
+
+                                💡 Solution recommandée :
+                                Utilisez le bouton "🔍 Scan Réseau" qui est plus fiable pour les TV Samsung 2014-2016.
+
+                                Le scan réseau teste directement les ports 8001/8002 de chaque appareil et fonctionne même si votre TV ne diffuse pas de service mDNS.
+                            """.trimIndent())
+                            .setPositiveButton("Scan Réseau") { _, _ ->
+                                startNetworkScan()
+                            }
+                            .setNegativeButton("IP Manuelle") { _, _ ->
+                                showManualIpDialog()
+                            }
+                            .setNeutralButton("Fermer", null)
+                            .show()
+                    }
                 } else {
                     DebugLogger.i("MainActivity", "Découverte terminée: ${discoveredTVs.size} TV(s) trouvée(s)")
                 }
